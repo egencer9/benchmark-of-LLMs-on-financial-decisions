@@ -1,0 +1,8 @@
+# Hassas bilgiler ve bağımlılıklar
+.env
+
+# IDE ve sistem dosyaları
+.idea/
+
+# Script'ler tarafından üretilen veri dosyaları
+*.csv
