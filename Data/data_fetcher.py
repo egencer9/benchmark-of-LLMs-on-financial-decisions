@@ -2,7 +2,6 @@ import os
 import finnhub
 import time
 import csv
-import yaml
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
