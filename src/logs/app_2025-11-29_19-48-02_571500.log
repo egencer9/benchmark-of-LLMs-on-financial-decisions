@@ -1,0 +1,617 @@
+2025-11-29 19:48:03 | INFO     | llm_agent:<module>:8 - Gemini API configured.
+2025-11-29 19:48:04 | INFO     | __main__:main:18 - --- Starting NASDAQ LLM Trader Simulation ---
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:67 - Loading data for backtest...
+2025-11-29 19:48:04 | INFO     | data_loader:load_market_data:16 - Attempting to load market data from absolute path: /Users/ege/Desktop/Final Year/data/market_data.csv
+2025-11-29 19:48:04 | INFO     | data_loader:load_market_data:34 - Market data loaded and numeric columns converted successfully.
+2025-11-29 19:48:04 | INFO     | data_loader:load_news_data:39 - Attempting to load news data from absolute path: /Users/ege/Desktop/Final Year/data/news_data.csv
+2025-11-29 19:48:04 | INFO     | data_loader:load_news_data:45 - News data loaded successfully.
+2025-11-29 19:48:04 | INFO     | backtester:__init__:15 - Portfolio initialized with $100,000.00 cash.
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:85 - Starting backtest from 2025-11-09 to 2025-11-29 for 14 trading days.
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-10 ---
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:04 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $269.43
+        - P/E Ratio: N/A
+        - News Summary: No relevant news today.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:04 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:04 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-11 ---
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:04 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $275.25
+        - P/E Ratio: N/A
+        - News Summary: No relevant news today.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:04 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:04 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-12 ---
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:04 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $273.47
+        - P/E Ratio: N/A
+        - News Summary: No relevant news today.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:04 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:04 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-13 ---
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:04 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $272.95
+        - P/E Ratio: N/A
+        - News Summary: No relevant news today.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:04 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:04 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:04 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-14 ---
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:04 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:04 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $272.41
+        - P/E Ratio: N/A
+        - News Summary: No relevant news today.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-17 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $267.46
+        - P/E Ratio: N/A
+        - News Summary: No relevant news today.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-18 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $267.44
+        - P/E Ratio: N/A
+        - News Summary: The S&P 500 Index ($SPX ) (SPY ) on Tuesday closed down by -0.83%, the Dow Jones Industrials Index ($DOWI ) (DIA ) closed down by -1.07%, and the Nasdaq 100 ... AppleがLiquid Glassデザインや新しいデバイスに対応した「Apple Configurator v2.19」をリリースしています。詳細は以下から。 　Appleは現地時間2025年11月18日、Macやi […]
+The post Apple、Liquid Glassデザインや新しいデバイスに対応した「Apple Configurator v2.19」をリリース。 first appeared on AAPL Ch.. The Financial Times recently reported that Apple (AAPL) may be looking for a new CEO to replace Tim Cook, reigniting the debate around his lack of performance since the emergence of AI. Analysts had been worried about Apple’s slow AI execution and a delayed l… Apple is apparently accelerating its plans to replace Cook amid concerns that the company is falling behind in AI. Berkshire's nearly $5 billion position in GOOGL marks a rare Buffett move into high-growth tech, signaling confidence in the company’s next phase of... Berkshire Hathaway's third quarter 2025 portfolio reveals a surprising $4.9B Alphabet stake as it offloaded some of its Apple Inc. holdings. Here's what... A new job posting at Apple exposes clues that the company could be looking at Intel as a packaging partner for future SoCs. Future M-series chips could leverage EMIB and/or Foveros.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-19 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $268.56
+        - P/E Ratio: N/A
+        - News Summary: Apple stock continues to trade at an elevated multiple as the iPhone is gaining market share in China, driven by strong iPhone 17 demand. Meta Platforms stock has been under pressure of late, among others, due to the allegations that Michael Burry has leveled against hyperscalers. Burry has... The best move investors can make right now may be to just ‘sit tight,’ says Robinhood’s CIO Stephanie Guild. Apple Inc. (NASDAQ:AAPL) is one of the Most Profitable Stocks to Buy Now. On November 18, Tim Long from Barclays raised the firm’s price target on Apple Inc. (NASDAQ:AAPL) from $180 to $230, but maintained a Sell rating. A day earlier, on November 17, Brandon… ​Apple Inc. (NASDAQ:AAPL) is one of the Most Profitable Stocks to Buy Now. On November 18, Tim Long from Barclays raised the firm’s price target on Apple Inc... RiverPark Advisors, an investment advisory firm and sponsor of the RiverPark family of mutual funds, released its “RiverPark Large Growth Fund” Q3 2025... Intel Macのサポートを終了し、Apple Silicon Macのみのサポートとなった「Blender v5.0」がリリースされています。詳細は以下から。 　オランダBlender Foundationは現地時 […]
+The post Intel Macの公式サポートを終了し、Apple Silicon Macのみのサポートとなった「Blender v5.0」がリリース。 first appeared on AAPL Ch.. TORONTO, Nov. 18, 2025 (GLOBE NEWSWIRE) — Purpose Investments Inc. (“Purpose”) is pleased to announce distributions for the month of November 2025 for its open-end exchange-traded funds and closed-end funds (“the Funds”).         The ex-distribution date for … TORONTO, Nov. 18, 2025 (GLOBE NEWSWIRE) -- Purpose Investments Inc. (“Purpose”) is pleased to announce distributions for the month of November 2025 for its open-end exchange-traded funds and closed-end funds (“the Funds”).         The ex-distribution date for…
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-20 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $266.25
+        - P/E Ratio: N/A
+        - News Summary: Peter Thiel's fund sold all its NVIDIA shares and cut Tesla by 76%, raising red flags on AI valuations and possible bubble. The S&P 500 Index ($SPX ) (SPY ) on Thursday closed down by -1.56%, the Dow Jones Industrials Index ($DOWI ) (DIA ) closed down by -0.84%, and the Nasdaq 100... This rare earth stock may be approaching a bottom and setting up for another rally as Wall Street analysts cozy up to its narrative. Amazonブラックフライデー先行セールで、Mac mini (2024)やiPad mini (A17 Pro)、AirPods 4、Magic MouseなどのApple製品が特別価格で販売されています。詳細は以下 […]
+The post Amazonブラックフライデー先行セールで、Apple M4チップを搭載したMacBook Air/Mac miniやiPad mini (A17 Pro)、AirPods 4/Pro 2、Magic Mouse (USB-C)などのApple製品が特別価格で販売中。 f… Ken Griffin usually doesn’t make headlines with a solitary trade, but his latest move into Meta Platforms (META) is the kind that compels Mr.Market to sit up... The S&P 500 Index ($SPX ) (SPY ) today is off by -0.19%, the Dow Jones Industrials Index ($DOWI ) (DIA ) is down by -0.21%, and the Nasdaq 100 Index ($IUXX )... The S&P 500 Index ($SPX ) (SPY ) today is up by +1.74%, the Dow Jones Industrials Index ($DOWI ) (DIA ) is up by +1.40%, and the Nasdaq 100 Index ($IUXX... SpigenがiMac G3とPower Mac G4 CubeをイメージしたMac mini用スタンドケース「Mac miniスタンド付きケース Classic C1」を日本でも発売するそうです。詳細は以下から。 　 […]
+The post Spigen、iMac G3とPower Mac G4 CubeをイメージしたMac mini用スタンドケース「Mac miniスタンド付きケース Classic C1」を日本でも発売。 first appeared on AAPL Ch.. Baron Funds, an investment management company, released its “Baron Opportunity Fund” third-quarter 2025 investor letter. A copy of the letter can be downloaded here. The fund posted positive results in the third quarter, returning 5.44% (Institutional Shares)… Baron Funds, an investment management company, released its “Baron Opportunity Fund” third-quarter 2025 investor letter. A copy of the letter can be... In 2016, I made a life-changing decision: I took a sabbatical, put my family in a small RV, and we drove all the way to Costa Rica. Upon my return in 2017, I officially quit my job as a private banker at National Bank and started working full-time on my baby:… VICTORIA, Seychelles, Nov. 19, 2025 (GLOBE NEWSWIRE) — Bitget, the world’s largest Universal Exchange (UEX), today announced a new milestone for its fast-growing stock futures product line, surpassing $5 billion in cumulative trading volume. The achievement c… Bitget surpasses $5B in stock futures volume as demand for tokenized equity trading accelerates globally....... Crypto and tech stocks have lifted after-hours on Nvidia’s record third-quarter earnings beat Wall Street expectations, alleviating fears of an AI bubble.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-21 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $271.49
+        - P/E Ratio: N/A
+        - News Summary: Valveの「Steamクライアント for Mac」がApple Siliconをネイティブサポートしたようです。詳細は以下から。 　ゲーム配信プラットフォームSteamを運営するValve Corporationは […]
+The post Steamクライアント for MacがApple Siliconをネイティブサポートしたもよう。 first appeared on AAPL Ch.. The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. CLI tool to scaffold multi-agent projects using Microsoft's Agent Framework The biz
+These are the top Apple ($AAPL) podcasts for 2025. (hollywoodreporter.com)
+Spotify ($SPOT) needs to keep AI music from listeners. (royalgazette.com)
+How to ask better interview questions. (capitalallocators.com)
+Technology
+Joe Weisenthal and Tracy All… Apple Inc. (NASDAQ:AAPL) is one of the stocks Jim Cramer put under the spotlight. Cramer discussed the stock’s price movement after the company posted its... Nvidia reported $57B in Q3 revenue (62% YoY growth), exceeding Wall Street forecasts. Profits surged to $31.9B, signaling unstoppable AI demand. CEO Jensen Huang declared AI adoption is accelerating globally, with Blackwell GPUs “off the charts” and cloud GPU… Model Context Protocol server for Finnhub financial market data API Morgan Stanley expects the bull run on the S&P 500 Index is only getting started. Let's see why.
+The post Why Morgan Stanley's S&P 500 target forecasts a 19% gain for this top ASX ETF appeared first on The Motley Fool Australia.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-24 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $275.92
+        - P/E Ratio: N/A
+        - News Summary: In Nasdaq trading today, shares of Apple Inc. (AAPL) rose to hit a new all-time closing high. Apple’s intraday high…
+The post Apple shares hit new all-time closing high appeared first on MacDailyNews. The S&P 500 Index ($SPX ) (SPY ) on Monday closed up by +1.55%, the Dow Jones Industrials Index ($DOWI ) (DIA ) closed up by +0.44%, and the Nasdaq 100 Index... The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. Sara Daw, group CEO of The CFO Centre and The Liberti Group, examines the accelerating shift toward co-CEOs as companies confront rising executive stress, shrinking tenures and increasingly complex leadership demands.Daw argues that shared leadership models—w… Warren Buffett’s decision to trim Berkshire’s Apple stake amid growing Wall Street fears of an AI bubble raises the key question of whether investors should ... The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. Key Points
+-
+Apple has failed to post impressive growth for several years.
+-
+Taiwan Semiconductor is growing rapidly thanks to the AI race.
+At the time of this writing, Apple (NASDAQ: AAPL) is the world's second-largest company by market cap, with a $4 trilli… There are rumors that Tim Cook will retire. There are other rumors that he will not. He has led Apple (NASDAQ: AAPL) since 2011, succeeding Steve Jobs. He is 65, which is a traditional retirement age.
+Quick Read
+-
+Cook May Be Remembered Well
+-
+Jobs Will Be Re… There are rumors that Tim Cook will retire. There are other rumors that he will not. He has led Apple (NASDAQ: AAPL) since 2011, succeeding Steve Jobs. He is... Amazonブラックフライデーセールで、CalDigitのThunderbolt 4/5ドッキングステーション「TS4/TS5」やAnker、OWC、UgreenのThunderbolt 5ドックが過去最安価格で販売さ […]
+The post Amazonブラックフライデーセールで、CalDigitのThunderbolt 4/5ドッキングステーション「TS4/TS5」やAnker、OWC、UgreenのThunderbolt 5ドックやエンクロージャ/ケーブルが過去最安価格で販売中。 first appear… CNN reportedly ended its content-sharing deal with Apple News for now. Read more.
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-25 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $276.97
+        - P/E Ratio: N/A
+        - News Summary: Wedbush Securities analyst Dan Ives has issued a list of technology stocks investors should own between now and year’s end.
+TipRanks Black Friday Sale
+Ives, who is a notorious Wall Street bull, remains constructive on the U.S. technology sector, arguing that … (GOOGL) has been on a tear since the favorable court decision about monopolistic advantages. The chart below shows the percentage returns in Google stock compared to the other Magnificent 7 names – Apple (AAPL), Amazon (AMZN), Meta (META), Nvidia (NVDA), Micr… Alphabet is transforming into the ‘Big Oil’ of AI, and GOOGL stock is crushing its competition in the process. The S&P 500 Index ($SPX ) (SPY ) on Tuesday closed up by +0.91%, the Dow Jones Industrials Index ($DOWI ) (DIA ) closed up by +1.43%, and the Nasdaq 100... In Nasdaq trading today, shares of Apple Inc. rose to hit a new all-time closing high. Apple’s all-time intraday high was also set today…
+The post Apple shares hit new all-time intraday and closing highs appeared first on MacDailyNews. Markets are muted after a strong start to the week as investors take stock of a Fed-fueled rebound. Apple stock prints an all-time high as the iPhone maker announces dozens of layoffs to improve operational efficiency. Here’s what investors should expect... Want to invest in the best stocks in the world? Here's how to do it.
+The post 5 reasons to buy the Betashares Nasdaq 100 ETF appeared first on The Motley Fool Australia. Anker JapanがコンパクトサイズのUSB-Cケーブル一体型モバイルバッテリー「Anker Zolo Power Bank (10000mAh, 22.5W, Built-In USB-Cケーブル)」を発売してい […]
+The post Anker Japan、コンパクトサイズのUSB-Cケーブル一体型モバイルバッテリー「Anker Zolo Power Bank (10000mAh, 22.5W, Built-In USB-Cケーブル)」を発売。 first appeared on AAPL Ch.. Key Points
+-
+Amazon isn’t as well-rounded as other “Magnificent Seven” names.
+-
+But it’s a mistake to underestimate AWS.
+-
+Amazon dilutes shareholders because stock-based compensation exceeds stock buybacks.
+Nvidia (NASDAQ: NVDA), Apple (NASDAQ: AAPL), Alphab… Quick Read
+-
+Just this morning, UBS upgraded AMAT to a buy rating with a price target of $285. They pointed to a far more bullish outlook for wafer fab equipment over the next two years
+-
+TD Cowen says it’s even more bullish on Nvidia after meeting with the c… Quick Read
+ 
+ 
+ Just this morning, UBS upgraded AMAT to a buy rating with a price target of $285. They pointed to a far more bullish outlook for wafer fab equipment over the next two years 
+ 
+ 
+TD Cowen says it’s even more bullish on Nvidia after meeting with… Berkshire Hathaway purchased 17.8 million shares of Alphabet’s Class A stock in the third quarter, according to a regulatory filing made public earlier this ... Tony Wang, who has a knack for spotting tech winners like Nvidia, talks about the companies that are exciting him now. Quick Read
+ 
+ 
+ Apple (AAPL) pays just $1B per year to use Google’s Gemini model compared to the $20B Google pays Apple for Safari search placement. 
+ 
+ Apple shares gained more than 52% since bottoming out and recently surpassed the $4T market cap mark. 
+ 
+ … The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. Apple stock has outperformed the Dow Jones over the past year and analysts are fairly bullish about its prospects. Amazonブラックフライデーセールで、Dolby Audioやノイズキャンセリングに対応したAnkerのワイヤレスイヤホン「Soundcore Liberty 5」、寝ホン「Soundcore Sleep A30/A […]
+The post Amazonブラックフライデーセールで、Dolby Audioやノイズキャンセリングに対応したAnkerのワイヤレスイヤホン「Soundcore Liberty 5」や寝ホン「Soundcore Sleep A30/A20」などが過去最安価格で販売中。 first app…
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:05 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:05 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:05 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-26 ---
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:05 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:05 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $277.55
+        - P/E Ratio: N/A
+        - News Summary: KagiがWebKitベースでSafariに加えChromeとFirefox機能拡張にも対応するブラウザ「Orion for Mac v1.0」をリリースしています。詳細は以下から。 　Orionブラウザは、元GoDa […]
+The post Kagi、WebKitベースながら一部のChromeとFirefox機能拡張にも対応するブラウザ「Orion for Mac v1.0」をリリース。 first appeared on AAPL Ch.. The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. In Nasdaq trading today, shares of Apple Inc. rose to hit a new all-time closing high. Apple’s all-time intraday high was also set today…
+The post Apple shares hit new all-time closing high appeared first on MacDailyNews. AI stock predictions: Wedbush analyst Dan Ives argues the AI sector is not in a bubble, emphasizing that only a small percentage of companies have adopted AI. He attributes current valuations to strong enterprise spending, government demand, and chip shortage… The AI revolution is still in its early innings. Wedbush analyst Dan Ives argues that investors are misreading one of the most significant technology build... By Aditya Kalra and Arpan Chaturvedi
+NEW DELHI (Reuters) -Apple (AAPL) is challenging India's new antitrust penalty law under which the U.S. company could potentially face a fine of up to $38 billion, a court filing at the Delhi High Court, seen by Reuters, s… NEW DELHI (Reuters) -Apple is challenging India's new antitrust penalty law under which the U.S. company could potentially face a fine of up to $38 billion, ... How can you leverage your savings into a more secure financial future? Dividends can be a key component of your wealth-building plan, and you can start today... In the latest monthly list of new buys by the best mutual funds, Wall Street showed it still has a taste for shares in artificial intelligence bellwethers like now-troubled Nvidia (NVDA) stock and Palantir Technologies (PLTR), as well as still-flying Alphabet… JPMorgan has an optimistic view on U.S. stock markets next year, and AI momentum will be playing a starring role. December could be a great month for stocks with November's correction setting up significant rebound potential for names like AMD, AVGO, and APLD. The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. Anker Japanが単ポート最大100W出力で出力や温度状態が分かるモニター搭載のUSB急速充電器「Anker Charger (100W, 3 Ports) with USB-C & USB-Cケーブル […]
+The post Anker Japan、単ポート最大100W出力で出力や温度状態が分かるモニター搭載のUSB急速充電器「Anker Charger (100W, 3 Ports) with USB-C & USB-Cケーブル」を発売。 first appeared on AAPL Ch.. Apple Inc. (NASDAQ:AAPL) is one of the Hot AI Stocks to Keep on Your Radar. On November 24, JPMorgan reiterated the stock as “Overweight” stating how their checks show lead times for Apple’s iPhone are tracking higher.
+“In Week 11 of our Apple Product Availab… Apple Inc. (NASDAQ:AAPL) is one of the Hot AI Stocks to Keep on Your Radar. On November 24, JPMorgan reiterated the stock as “Overweight” stating how their...
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:06 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:06 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:06 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:06 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:06 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-28 ---
+2025-11-29 19:48:06 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...
+2025-11-29 19:48:06 | DEBUG    | llm_agent:construct_master_prompt:81 - Master prompt constructed.
+2025-11-29 19:48:06 | INFO     | llm_agent:get_llm_decision:29 - Sending prompt to Gemini API...
+2025-11-29 19:48:06 | DEBUG    | llm_agent:get_llm_decision:30 - Prompt content:
+
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
+
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
+
+    **Current Portfolio State:**
+    - Cash: $100000.00
+    - Holdings: {}
+
+    **Today's Market Data & News Summaries:**
+    
+        ---
+        **Stock: AAPL**
+        - Current Price: $278.85
+        - P/E Ratio: N/A
+        - News Summary: The third quarter earnings season has been mostly positive, with most of the reports in the rearview mirror. Model Context Protocol server exposing crypto screener tools (TradingView Screener)
+        
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    
+2025-11-29 19:48:06 | ERROR    | llm_agent:get_llm_decision:37 - Error calling Gemini API: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-11-29 19:48:06 | ERROR    | backtester:run_backtest:131 - Failed to decode LLM response: 'NoneType' object has no attribute 'strip'. Response was: None
+2025-11-29 19:48:06 | INFO     | backtester:run_backtest:135 - Executing trades based on LLM decisions...
+2025-11-29 19:48:06 | INFO     | backtester:run_backtest:149 - End of day portfolio value: $100,000.00
+2025-11-29 19:48:06 | INFO     | backtester:run_backtest:151 - --- Backtest Finished ---
+2025-11-29 19:48:06 | INFO     | __main__:main:31 - --- Starting Performance Analysis ---
+2025-11-29 19:48:06 | INFO     | analysis:calculate_metrics:14 - Calculating performance metrics...
+2025-11-29 19:48:06 | WARNING  | analysis:calculate_metrics:37 - No downside deviation; Sortino Ratio is infinite.
+2025-11-29 19:48:06 | INFO     | analysis:calculate_metrics:44 - Metrics calculated: {'Cumulative Return': '0.00%', 'Max Drawdown': '0.00%', 'Sortino Ratio': 'inf'}
+2025-11-29 19:48:06 | INFO     | __main__:main:35 - LLM Agent Metrics:
+2025-11-29 19:48:06 | INFO     | __main__:main:37 - - Cumulative Return: 0.00%
+2025-11-29 19:48:06 | INFO     | __main__:main:37 - - Max Drawdown: 0.00%
+2025-11-29 19:48:06 | INFO     | __main__:main:37 - - Sortino Ratio: inf
+2025-11-29 19:48:06 | INFO     | data_loader:load_market_data:16 - Attempting to load market data from absolute path: /Users/ege/Desktop/Final Year/data/market_data.csv
+2025-11-29 19:48:06 | INFO     | data_loader:load_market_data:34 - Market data loaded and numeric columns converted successfully.
+2025-11-29 19:48:06 | WARNING  | analysis:create_buy_and_hold_baseline:78 - Simulation dates are empty, cannot create baseline.
+2025-11-29 19:48:06 | WARNING  | analysis:calculate_metrics:11 - Portfolio history is too short to calculate metrics.
+2025-11-29 19:48:06 | INFO     | __main__:main:47 - Buy-and-Hold Baseline Metrics:
+2025-11-29 19:48:06 | INFO     | __main__:main:52 - Generating performance plot...
+2025-11-29 19:48:06 | INFO     | analysis:plot_performance:55 - Plotting portfolio performance against baseline.
+2025-11-29 19:48:06 | INFO     | analysis:plot_performance:70 - Performance plot saved to logs/performance_plot.png
+2025-11-29 19:48:06 | INFO     | __main__:main:54 - Plot generated and displayed.
