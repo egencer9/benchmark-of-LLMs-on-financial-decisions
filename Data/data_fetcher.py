@@ -2,9 +2,12 @@ import os
 import finnhub
 import time
 import csv
+import yaml
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 
 # import companies.yaml  <-- THIS LINE WAS REMOVED
 
@@ -74,6 +77,56 @@ def fetch_general_news(finnhub_client, starting_date, ending_date):
     print(f"✅ Successfully wrote general news to {output_filename}")
 
 
+def fetch_market_data(finnhub_client, company_list, start_date, end_date):
+    """
+    Listeden her şirket için geçmiş piyasa verilerini (mum grafikleri) çeker
+    ve tek bir CSV dosyasına yazar.
+    """
+    output_filename = os.path.join(DATA_DIR, 'market_data.csv')
+
+    # Finnhub API'si için tarihleri Unix timestamp formatına çevir
+    start_timestamp = int(start_date.timestamp())
+    end_timestamp = int(end_date.timestamp())
+
+    with open(output_filename, 'w', newline='', encoding='utf-8') as csvfile:
+        market_writer = csv.writer(csvfile)
+        # Sütun başlıklarını yaz
+        market_writer.writerow(['symbol', 'date', 'open', 'high', 'low', 'close', 'volume'])
+        print(f"\nPiyasa verileri çekiliyor ve '{output_filename}' dosyasına yazılıyor...")
+
+        for company in company_list:
+            symbol = company['symbol']
+            print(f"-> {company['name']} ({symbol}) için piyasa verisi alınıyor...")
+
+            try:
+                # Günlük çözünürlük ('D') için hisse senedi mum verilerini çek
+                candles = finnhub_client.stock_candle(symbol, 'D', start_timestamp, end_timestamp)
+
+                # Veri geldiyse ve 's' (status) 'ok' ise
+                if candles.get('s') == 'ok':
+                    # Finnhub, verileri ayrı listeler halinde döndürür (o, h, l, c, t, v)
+                    # 't' (timestamp) listesinin uzunluğu kadar dön
+                    for i in range(len(candles['t'])):
+                        dt = datetime.fromtimestamp(candles['t'][i]).strftime('%Y-%m-%d')
+                        market_writer.writerow([
+                            symbol,
+                            dt,
+                            candles['o'][i],
+                            candles['h'][i],
+                            candles['l'][i],
+                            candles['c'][i],
+                            candles['v'][i]
+                        ])
+                else:
+                    print(f"-> {symbol} için veri bulunamadı veya bir hata oluştu: {candles.get('s')}")
+
+                # API limitlerine saygı duy
+                time.sleep(1)
+            except Exception as e:
+                print(f"HATA: {symbol} için piyasa verisi alınamadı: {e}")
+
+    print(f"\n✅ Piyasa verileri başarıyla '{output_filename}' dosyasına yazıldı.")
+
 # Main execution block
 if __name__ == "__main__":
     load_dotenv()
@@ -99,3 +152,4 @@ if __name__ == "__main__":
             print("Error: 'companies.yaml' not found. Please create it first.")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+

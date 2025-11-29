@@ -1,0 +1,3 @@
+model: # Using 'models' (plural) is clearer for a list
+  - "minimax/minimax-m2:free"
+  - "google/gemma-3-12b-it:free"
