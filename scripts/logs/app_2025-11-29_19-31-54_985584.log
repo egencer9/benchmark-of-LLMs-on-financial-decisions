@@ -1,0 +1,21 @@
+2025-11-29 19:31:54 | INFO     | __main__:<module>:94 - --- Starting Data Collection Script ---
+2025-11-29 19:31:54 | INFO     | __main__:collect_market_data:28 - Fetching market data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] from 2025-10-30 to 2025-11-29
+2025-11-29 19:31:54 | DEBUG    | __main__:collect_market_data:35 - Downloading data for AAPL
+2025-11-29 19:31:56 | DEBUG    | __main__:collect_market_data:35 - Downloading data for MSFT
+2025-11-29 19:31:56 | DEBUG    | __main__:collect_market_data:35 - Downloading data for NVDA
+2025-11-29 19:31:57 | DEBUG    | __main__:collect_market_data:35 - Downloading data for TSLA
+2025-11-29 19:31:57 | DEBUG    | __main__:collect_market_data:35 - Downloading data for AMZN
+2025-11-29 19:31:58 | INFO     | __main__:collect_market_data:45 - Market data saved to: /Users/ege/Desktop/Final Year/data/market_data.csv
+2025-11-29 19:31:58 | INFO     | __main__:collect_news_data:49 - Fetching news data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN']
+2025-11-29 19:31:58 | DEBUG    | __main__:collect_news_data:62 - Fetching news for AAPL
+2025-11-29 19:31:58 | INFO     | __main__:collect_news_data:77 - Found 100 articles for AAPL
+2025-11-29 19:31:58 | DEBUG    | __main__:collect_news_data:62 - Fetching news for MSFT
+2025-11-29 19:31:58 | INFO     | __main__:collect_news_data:77 - Found 100 articles for MSFT
+2025-11-29 19:31:58 | DEBUG    | __main__:collect_news_data:62 - Fetching news for NVDA
+2025-11-29 19:31:59 | INFO     | __main__:collect_news_data:77 - Found 100 articles for NVDA
+2025-11-29 19:31:59 | DEBUG    | __main__:collect_news_data:62 - Fetching news for TSLA
+2025-11-29 19:31:59 | INFO     | __main__:collect_news_data:77 - Found 100 articles for TSLA
+2025-11-29 19:31:59 | DEBUG    | __main__:collect_news_data:62 - Fetching news for AMZN
+2025-11-29 19:32:00 | INFO     | __main__:collect_news_data:77 - Found 100 articles for AMZN
+2025-11-29 19:32:00 | INFO     | __main__:collect_news_data:90 - News data saved to: /Users/ege/Desktop/Final Year/data/news_data.csv
+2025-11-29 19:32:00 | INFO     | __main__:<module>:97 - --- Data Collection Finished ---

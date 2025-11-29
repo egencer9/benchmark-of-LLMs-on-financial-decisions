@@ -1,0 +1,8 @@
+2025-11-29 19:39:52 | INFO     | __main__:<module>:109 - --- Starting Data Collection Script ---
+2025-11-29 19:39:52 | INFO     | __main__:collect_market_data:31 - Fetching market data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] from 2025-10-30 to 2025-11-29
+2025-11-29 19:39:52 | DEBUG    | __main__:collect_market_data:38 - Downloading data for AAPL
+2025-11-29 19:39:53 | DEBUG    | __main__:collect_market_data:38 - Downloading data for MSFT
+2025-11-29 19:39:53 | DEBUG    | __main__:collect_market_data:38 - Downloading data for NVDA
+2025-11-29 19:39:54 | DEBUG    | __main__:collect_market_data:38 - Downloading data for TSLA
+2025-11-29 19:39:54 | DEBUG    | __main__:collect_market_data:38 - Downloading data for AMZN
+2025-11-29 19:39:55 | INFO     | __main__:collect_market_data:58 - Market data saved correctly to: /Users/ege/Desktop/Final Year/data/market_data.csv

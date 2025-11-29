@@ -1,8 +1,6 @@
 pandas
 yfinance
 newsapi-python
-transformers
-torch
-accelerate
 python-dotenv
 loguru
+google-generativeai

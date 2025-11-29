@@ -1,0 +1,21 @@
+2025-11-29 19:22:45 | INFO     | __main__:<module>:87 - --- Starting Data Collection Script ---
+2025-11-29 19:22:45 | INFO     | __main__:collect_market_data:24 - Fetching market data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] from 2025-10-30 to 2025-11-29
+2025-11-29 19:22:45 | DEBUG    | __main__:collect_market_data:31 - Downloading data for AAPL
+2025-11-29 19:22:46 | DEBUG    | __main__:collect_market_data:31 - Downloading data for MSFT
+2025-11-29 19:22:47 | DEBUG    | __main__:collect_market_data:31 - Downloading data for NVDA
+2025-11-29 19:22:47 | DEBUG    | __main__:collect_market_data:31 - Downloading data for TSLA
+2025-11-29 19:22:48 | DEBUG    | __main__:collect_market_data:31 - Downloading data for AMZN
+2025-11-29 19:22:48 | INFO     | __main__:collect_market_data:38 - Market data saved to data/market_data.csv
+2025-11-29 19:22:48 | INFO     | __main__:collect_news_data:42 - Fetching news data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN']
+2025-11-29 19:22:48 | DEBUG    | __main__:collect_news_data:55 - Fetching news for AAPL
+2025-11-29 19:22:49 | INFO     | __main__:collect_news_data:70 - Found 100 articles for AAPL
+2025-11-29 19:22:49 | DEBUG    | __main__:collect_news_data:55 - Fetching news for MSFT
+2025-11-29 19:22:49 | INFO     | __main__:collect_news_data:70 - Found 100 articles for MSFT
+2025-11-29 19:22:49 | DEBUG    | __main__:collect_news_data:55 - Fetching news for NVDA
+2025-11-29 19:22:50 | INFO     | __main__:collect_news_data:70 - Found 100 articles for NVDA
+2025-11-29 19:22:50 | DEBUG    | __main__:collect_news_data:55 - Fetching news for TSLA
+2025-11-29 19:22:50 | INFO     | __main__:collect_news_data:70 - Found 100 articles for TSLA
+2025-11-29 19:22:50 | DEBUG    | __main__:collect_news_data:55 - Fetching news for AMZN
+2025-11-29 19:22:50 | INFO     | __main__:collect_news_data:70 - Found 100 articles for AMZN
+2025-11-29 19:22:50 | INFO     | __main__:collect_news_data:83 - News data saved to data/news_data.csv
+2025-11-29 19:22:50 | INFO     | __main__:<module>:90 - --- Data Collection Finished ---
