@@ -1,129 +1,113 @@
-# src/llm_agent.py
-#TODO prompt
-import pandas as pd
-import json
-from datetime import timedelta
+import os
+from transformers import pipeline, logging as hf_logging
+import google.generativeai as genai
+from config import GEMINI_API_KEY
+from logger import log
 
+# Suppress verbose logging from transformers
+hf_logging.set_verbosity_error()
 
-# (Your code to import GEMINI_API_KEY from config.py
-# and initialize the model will go here)
-# import google.generativeai as genai
-# from config import GEMINI_API_KEY
-# genai.configure(api_key=GEMINI_API_KEY)
-# model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# Configure the Gemini API
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    log.info("Gemini API configured.")
 
+# Load a local summarization model
+try:
+    log.info("Loading local summarization model (Qwen/Qwen2-0.5B)...")
+    summarizer = pipeline("summarization", model="Qwen/Qwen2-0.5B")
+    log.info("Summarization model loaded successfully.")
+except Exception as e:
+    log.error(f"Failed to load summarization model: {e}", exc_info=True)
+    summarizer = None
 
-def create_prompt(current_date, current_portfolio, market_data, news_data, tickers_list):
+def summarize_text(text, max_length=150, min_length=30):
     """
-    Combines all data for a specific day to create
-    the main prompt that will be sent to the LLM.
-
-    Args:
-        current_date (datetime): The current day in the simulation.
-        current_portfolio (dict): The agent's current cash and holdings.
-        market_data (DataFrame): ALL market data.
-        news_data (DataFrame): ALL news data.
-        tickers_list (list): The list of stocks to be traded (e.g., ['AAPL', 'MSFT']).
+    Summarizes a given text using a local transformer model.
     """
-
-    # --- 1. Format Portfolio Information ---
-    portfolio_str = json.dumps(current_portfolio, indent=2)
-
-    # --- 2. Filter Market Data for the Day ---
+    if not summarizer:
+        log.warning("Summarization model not available. Returning truncated text.")
+        return text[:max_length]
+    if not text or not isinstance(text, str):
+        return ""
     try:
-        # We can easily select the day using .loc since 'date' is the index
-        # We must filter market_data for the relevant tickers first
-        market_data_today = market_data[market_data['symbol'].isin(tickers_list)]
-        market_data_today = market_data_today.loc[current_date.strftime('%Y-%m-%d')]
-        market_str = market_data_today.to_string()
-    except KeyError:
-        market_str = "No market data found for today."
+        log.debug(f"Summarizing text of length {len(text)}")
+        summary = summarizer(text, max_length=max_length, min_length=min_length, do_sample=False)
+        log.debug(f"Generated summary: {summary[0]['summary_text']}")
+        return summary[0]['summary_text']
     except Exception as e:
-        market_str = f"Error retrieving market data: {e}"
+        log.error(f"Error during summarization: {e}", exc_info=True)
+        return text[:max_length] # Fallback
 
-    # --- 3. Filter News for the Day (Last 24 hours) ---
-    start_time = current_date - timedelta(days=1)
-    end_time = current_date
+def get_llm_decision(prompt):
+    """
+    Gets trading decisions from the LLM.
+    """
+    if not GEMINI_API_KEY:
+        log.warning("GEMINI_API_KEY not found. Returning a dummy JSON response for testing.")
+        dummy_response = """
+        {
+          "AAPL": {"decision": "HOLD", "reasoning": "Dummy: Market stable.", "confidence": 0.7},
+          "MSFT": {"decision": "BUY", "reasoning": "Dummy: Positive news.", "confidence": 0.6},
+          "NVDA": {"decision": "SELL", "reasoning": "Dummy: Overbought.", "confidence": 0.5},
+          "TSLA": {"decision": "HOLD", "reasoning": "Dummy: Volatile.", "confidence": 0.8},
+          "AMZN": {"decision": "BUY", "reasoning": "Dummy: Strong fundamentals.", "confidence": 0.75}
+        }
+        """
+        return dummy_response
 
-    # Filter by time AND relevant tickers
-    todays_news = news_data[
-        (news_data['published_at'] >= start_time) &
-        (news_data['published_at'] < end_time) &
-        (news_data['symbol'].isin(tickers_list))  # Only show news for our target stocks
-        ]
+    try:
+        log.info("Sending prompt to Gemini API...")
+        log.debug(f"Prompt content:\n{prompt}")
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(prompt)
+        log.info("Received response from Gemini API.")
+        log.debug(f"Response content:\n{response.text}")
+        return response.text
+    except Exception as e:
+        log.error(f"Error calling Gemini API: {e}", exc_info=True)
+        return None
 
-    news_str = ""
-    if todays_news.empty:
-        news_str = "No relevant news found for the target stocks in the last 24 hours."
-    else:
-        # Let's just get the summary and headline
-        for index, row in todays_news.iterrows():
-            news_str += f"- Ticker: {row['symbol']}\n  Headline: {row['headline']}\n  Summary: {row['summary']}\n\n"
-
-    # --- 4. Dynamically Create the Desired JSON Format Example ---
-    json_format_example = "{\n"
-    # Show NASDAQ tickers as an example
-    example_tickers = [t for t in tickers_list if t in ['AAPL', 'MSFT', 'NVDA']]
-    if not example_tickers:
-        example_tickers = tickers_list[:3]  # Fallback to first 3
-
-    for ticker in example_tickers:
-        json_format_example += f'  "{ticker}": "decision",\n'
-    json_format_example += "  ...\n}"
-
-    # --- 5. Combine All Parts into the Final Prompt ---
+def construct_master_prompt(portfolio, market_data, news_summaries):
+    """
+    Constructs the single master prompt for the LLM.
+    """
+    log.debug("Constructing master prompt...")
+    # ... (rest of the function is the same, no logging needed inside the prompt string)
     prompt = f"""
-    You are an expert investment analyst agent specializing in the US NASDAQ market, analyzing quantitative and qualitative data. Your task is to make logical trading decisions based on the current data provided to you.
+    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
 
-    ---
-    1. CURRENT PORTFOLIO STATUS:
-    (Cash in USD and number of shares owned)
-    {portfolio_str}
+    **Constraints:**
+    1.  Your entire response must be a single JSON object.
+    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
+    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
 
-    ---
-    2. TODAY'S MARKET DATA (Opening Prices, P/E Ratios, etc.):
-    {market_str}
+    **Current Portfolio State:**
+    - Cash: ${portfolio['cash']:.2f}
+    - Holdings: {portfolio['holdings']}
 
-    ---
-    3. RELEVANT MARKET NEWS (LAST 24 HOURS):
-    {news_str}
-    ---
-
-    TASK:
-    Analyze all the data above as a whole. Make a rational decision for each stock in the target list: {tickers_list}.
-
-    Decisions can be:
-    - "increase": Increase the position (Buy)
-    - "decrease": Decrease the position (Sell)
-    - "hold": Maintain the position (Do nothing)
-
-    Please provide your response ONLY and EXACTLY in the following JSON format, with no additional explanations:
-
-    {json_format_example}
+    **Today's Market Data & News Summaries:**
     """
 
+    for ticker, data in market_data.items():
+        news_summary = news_summaries.get(ticker, "No relevant news today.")
+        prompt += f"""
+        ---
+        **Stock: {ticker}**
+        - Current Price: ${data['price']:.2f}
+        - P/E Ratio: {data.get('pe_ratio', 'N/A')}
+        - News Summary: {news_summary}
+        """
+
+    prompt += """
+    ---
+    **Instruction:**
+    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
+    {
+      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
+      ...
+    }
+    """
+    log.debug("Master prompt constructed.")
     return prompt
-
-
-def get_llm_decisions(prompt, tickers_list):
-    """
-    (This is your function that calls the LLM API)
-    It takes the generated prompt, sends it to the API, and returns the JSON response.
-    """
-    print("   Consulting LLM Agent for decisions...")
-    try:
-        # response = model.generate_content(...) # ACTUAL API CALL
-
-        # --- DUMMY RESPONSE FOR TESTING ---
-        # To avoid using the real API during testing, let's return a fake (dummy) response
-        import random
-        fake_response = {ticker: random.choice(['increase', 'decrease', 'hold']) for ticker in tickers_list}
-        print(f"   Agent's Decision (Dummy): {fake_response}")
-        return fake_response
-        # --- DELETE DUMMY CODE AND RETURN ACTUAL RESPONSE ---
-        # return json.loads(response.text)
-
-    except Exception as e:
-        print(f"   ERROR: LLM API call failed: {e}")
-        # In case of an error, 'hold' all positions to prevent risk
-        return {ticker: 'hold' for ticker in tickers_list}

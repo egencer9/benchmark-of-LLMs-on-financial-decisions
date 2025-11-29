@@ -1,61 +1,41 @@
-
 import pandas as pd
 import os
+from logger import log
 
-# Find the project root directory (go up one level since this file is in /src)
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
+DATA_DIR = "data"
+MARKET_DATA_PATH = os.path.join(DATA_DIR, "market_data.csv")
+NEWS_DATA_PATH = os.path.join(DATA_DIR, "news_data.csv")
 
+def load_market_data():
+    """Loads market data from the CSV file."""
+    log.info(f"Loading market data from {MARKET_DATA_PATH}")
+    if not os.path.exists(MARKET_DATA_PATH):
+        log.error(f"Market data not found at {MARKET_DATA_PATH}. Run scripts/collect_data.py first.")
+        raise FileNotFoundError(f"Market data not found at {MARKET_DATA_PATH}.")
+    df = pd.read_csv(MARKET_DATA_PATH, index_col='Date', parse_dates=True)
+    log.info("Market data loaded successfully.")
+    return df
 
-def load_all_data():
-    """
-    Reads all CSV data, sets the datetime columns,
-    and returns them as DataFrames.
-    """
-    print("Loading data...")
-
-    # --- Load Market Data ---
-    market_data_path = os.path.join(DATA_DIR, 'market_data.csv')
-    try:
-        # Read 'Date' column as datetime and set it as index
-        market_df = pd.read_csv(
-            market_data_path,
-            parse_dates=['Date'],  # Convert 'Date' column to datetime object
-            index_col='Date'  # Set 'Date' column as the main index
-        )
-        # Simplify column names (fix multi-level headers from yfinance)
-        market_df.columns = [col[1] if isinstance(col, tuple) else col for col in market_df.columns]
-        # Get only Open and P/E data for BIST30 (example)
-        # You must adjust this part according to your own market_data.csv structure.
-        # Assuming 'Open' and 'P/E' for simplicity.
-
-        print(f"Successfully loaded '{market_data_path}'.")
-    except Exception as e:
-        print(f"ERROR: Could not load '{market_data_path}'. Did you run 'scripts/collect_data.py'? Error: {e}")
-        market_df = pd.DataFrame()  # Return an empty DataFrame on error
-
-    # --- Load News Data ---
-    news_data_path = os.path.join(DATA_DIR, 'general_news.csv')
-    try:
-        # Read 'published_at' column as datetime
-        news_df = pd.read_csv(
-            news_data_path,
-            parse_dates=['published_at']  # Convert 'published_at' column to datetime object
-        )
-        print(f"Successfully loaded '{news_data_path}'.")
-    except Exception as e:
-        print(f"ERROR: Could not load '{news_data_path}'. Error: {e}")
-        news_df = pd.DataFrame()  # Return an empty DataFrame on error
-
-    return market_df, news_df
-
+def load_news_data():
+    """Loads news data from the CSV file."""
+    log.info(f"Loading news data from {NEWS_DATA_PATH}")
+    if not os.path.exists(NEWS_DATA_PATH):
+        log.error(f"News data not found at {NEWS_DATA_PATH}. Run scripts/collect_data.py first.")
+        raise FileNotFoundError(f"News data not found at {NEWS_DATA_PATH}.")
+    df = pd.read_csv(NEWS_DATA_PATH, parse_dates=['publishedAt'])
+    log.info("News data loaded successfully.")
+    return df
 
 if __name__ == '__main__':
-    # You can test this file quickly by running it directly
-    market_data, news_data = load_all_data()
+    # Example usage:
+    log.info("--- Data Loader Example ---")
+    try:
+        market_data = load_market_data()
+        log.info("Market Data Head:")
+        log.info(market_data.head())
 
-    print("\n--- Market Data (First 5 Rows) ---")
-    print(market_data.head())
-
-    print("\n--- News Data (First 5 Rows) ---")
-    print(news_data.head())
+        news_data = load_news_data()
+        log.info("News Data Head:")
+        log.info(news_data.head())
+    except FileNotFoundError as e:
+        log.error(e)
