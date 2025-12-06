@@ -39,7 +39,6 @@ def collect_market_data():
         try:
             stock_data = yf.download(ticker, start=START_DATE, end=END_DATE, progress=False)
             
-            # --- FIX: Add check for empty DataFrame ---
             if stock_data.empty:
                 log.warning(f"No data downloaded for {ticker}. It might be delisted or the ticker is incorrect.")
                 continue
@@ -61,7 +60,6 @@ def collect_market_data():
     df.to_csv(MARKET_DATA_PATH, index=False)
     log.info(f"Market data saved correctly to: {MARKET_DATA_PATH}")
     
-    # --- FIX: Safer logging ---
     try:
         log.info(f"CSV Header: {', '.join(df.columns)}")
     except TypeError:
@@ -70,7 +68,6 @@ def collect_market_data():
 
 def collect_news_data():
     """Fetches news articles for the target stocks."""
-    # This function is assumed to be working correctly.
     log.info(f"Fetching news data for {TICKERS}")
     if not NEWS_API_KEY:
         log.error("NEWS_API_KEY not found. Please set it in your .env file. Skipping news collection.")

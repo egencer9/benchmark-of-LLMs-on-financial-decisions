@@ -17,18 +17,13 @@ def calculate_metrics(portfolio_history, risk_free_rate=0.02):
         log.warning("No returns were generated, cannot calculate metrics.")
         return {}
 
-    # Cumulative Return
     cumulative_return = (portfolio_history[-1] / portfolio_history[0]) - 1
-
-    # Max Drawdown
     rolling_max = pd.Series(portfolio_history).cummax()
     daily_drawdown = pd.Series(portfolio_history) / rolling_max - 1.0
     max_drawdown = daily_drawdown.min()
-
-    # Sortino Ratio
     downside_returns = returns[returns < 0]
     downside_std = downside_returns.std()
-    annualized_return = returns.mean() * 252 # Assuming 252 trading days
+    annualized_return = returns.mean() * 252
 
     if downside_std > 0:
         sortino_ratio = (annualized_return - (risk_free_rate / 252)) / downside_std * np.sqrt(252)
@@ -63,18 +58,17 @@ def plot_performance(portfolio_history, baseline_history):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    # Instead of plt.show() which blocks execution, we'll save the figure.
-    # This is better for non-interactive environments.
     plot_filename = "logs/performance_plot.png"
     plt.savefig(plot_filename)
     log.info(f"Performance plot saved to {plot_filename}")
-    plt.close() # Close the plot to free up memory
+    plt.close()
 
 def create_buy_and_hold_baseline(initial_investment, market_data, tickers, simulation_dates):
     """
     Creates a baseline portfolio that buys and holds the target stocks.
     """
-    if simulation_dates.empty:
+    # --- FIX 1: Check list length correctly ---
+    if len(simulation_dates) == 0:
         log.warning("Simulation dates are empty, cannot create baseline.")
         return []
 
@@ -82,7 +76,8 @@ def create_buy_and_hold_baseline(initial_investment, market_data, tickers, simul
     investment_per_ticker = initial_investment / len(tickers)
     shares_to_buy = {}
 
-    first_day_data = market_data[market_data.index == simulation_dates[0]]
+    # --- FIX 2: Filter by 'Date' column, not index ---
+    first_day_data = market_data[market_data['Date'] == simulation_dates[0]]
     if first_day_data.empty:
         log.error("No market data for the first simulation day. Cannot create baseline.")
         return []
@@ -100,7 +95,8 @@ def create_buy_and_hold_baseline(initial_investment, market_data, tickers, simul
     baseline_history = []
     for date in simulation_dates:
         daily_value = 0
-        current_day_data = market_data[market_data.index == date]
+        # --- FIX 3: Filter by 'Date' column, not index ---
+        current_day_data = market_data[market_data['Date'] == date]
         for ticker, shares in shares_to_buy.items():
             ticker_data = current_day_data[current_day_data['ticker'] == ticker]
             if not ticker_data.empty:

@@ -1,46 +1,90 @@
 import google.generativeai as genai
-from config import GEMINI_API_KEY
+from openai import OpenAI # Correct import for modern client
+from config import LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY
 from logger import log
 
-# Configure the Gemini API
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    log.info("Gemini API configured.")
+# --- Client Initialization ---
+gemini_client = None
+openai_client = None
+
+if LLM_PROVIDER == 'gemini':
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+        # --- FIX: Update the model name ---
+        gemini_client = genai.GenerativeModel('gemini-2.5-flash-lite')
+        log.info("LLM Provider: Gemini. Client initialized with model 'gemini-2.5-flash-lite'.")
+    else:
+        log.warning("LLM_PROVIDER is 'gemini' but GEMINI_API_KEY is not set.")
+elif LLM_PROVIDER == 'openai':
+    if OPENAI_API_KEY:
+        openai_client = OpenAI(api_key=OPENAI_API_KEY) # Correct client instantiation
+        log.info("LLM Provider: OpenAI. Client initialized.")
+    else:
+        log.warning("LLM_PROVIDER is 'openai' but OPENAI_API_KEY is not set.")
+else:
+    log.warning(f"LLM_PROVIDER '{LLM_PROVIDER}' is not supported. Using dummy response mode.")
+
 
 def get_llm_decision(prompt):
     """
-    Gets trading decisions from the LLM.
-    This function sends the aggregated, summarized prompt to the LLM API.
+    Gets trading decisions from the configured LLM provider.
     """
-    if not GEMINI_API_KEY:
-        log.warning("GEMINI_API_KEY not found. Returning a dummy JSON response for testing.")
-        dummy_response = """
-        {
-          "AAPL": {"decision": "HOLD", "reasoning": "Dummy response: Market is stable, holding position.", "confidence": 0.7},
-          "MSFT": {"decision": "BUY", "reasoning": "Dummy response: Positive news indicates potential growth.", "confidence": 0.6},
-          "NVDA": {"decision": "SELL", "reasoning": "Dummy response: Stock appears overbought.", "confidence": 0.5},
-          "TSLA": {"decision": "HOLD", "reasoning": "Dummy response: High volatility, waiting for clearer signals.", "confidence": 0.8},
-          "AMZN": {"decision": "BUY", "reasoning": "Dummy response: Strong fundamentals and recent positive news.", "confidence": 0.75}
-        }
-        """
-        return dummy_response
+    if LLM_PROVIDER == 'gemini' and gemini_client:
+        return _get_gemini_decision(prompt)
+    elif LLM_PROVIDER == 'openai' and openai_client:
+        return _get_openai_decision(prompt)
+    else:
+        log.warning(f"No valid LLM client initialized. Returning a dummy JSON response.")
+        return _get_dummy_response()
 
+def _get_gemini_decision(prompt):
+    """Handles the API call to Google Gemini."""
     try:
         log.info("Sending prompt to Gemini API...")
-        log.debug(f"Prompt content:\n{prompt}")
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(prompt)
+        response = gemini_client.generate_content(prompt)
         log.info("Received response from Gemini API.")
         log.debug(f"Response content:\n{response.text}")
         return response.text
     except Exception as e:
         log.error(f"Error calling Gemini API: {e}", exc_info=True)
-        return None # Indicate failure
+        return _get_dummy_response()
+
+def _get_openai_decision(prompt):
+    """Handles the API call to OpenAI using the modern client."""
+    try:
+        log.info("Sending prompt to OpenAI API...")
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a financial analyst providing responses in clean JSON format."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        log.info("Received response from OpenAI API.")
+        decision = response.choices[0].message.content
+        log.debug(f"Response content:\n{decision}")
+        return decision
+    except Exception as e:
+        log.error(f"Error calling OpenAI API: {e}", exc_info=True)
+        return _get_dummy_response()
+
+def _get_dummy_response():
+    """Returns a dummy JSON response for testing or in case of API failure."""
+    return """
+    {
+      "AAPL": {"decision": "HOLD", "reasoning": "Dummy response: Market is stable.", "confidence": 0.7},
+      "MSFT": {"decision": "BUY", "reasoning": "Dummy response: Positive news.", "confidence": 0.6},
+      "NVDA": {"decision": "SELL", "reasoning": "Dummy response: Overbought.", "confidence": 0.5},
+      "TSLA": {"decision": "HOLD", "reasoning": "Dummy response: Volatile.", "confidence": 0.8},
+      "AMZN": {"decision": "BUY", "reasoning": "Dummy response: Strong fundamentals.", "confidence": 0.75}
+    }
+    """
 
 def construct_master_prompt(portfolio, market_data, news_summaries):
     """
     Constructs the single master prompt for the LLM, aggregating all data.
     """
+    # This function remains the same as it is provider-agnostic.
     log.debug("Constructing master prompt...")
     prompt = f"""
     **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
@@ -58,7 +102,6 @@ def construct_master_prompt(portfolio, market_data, news_summaries):
     """
 
     for ticker, data in market_data.items():
-        # The 'news_summaries' now directly contain the aggregated descriptions
         news_summary = news_summaries.get(ticker, "No relevant news today.")
         prompt += f"""
         ---

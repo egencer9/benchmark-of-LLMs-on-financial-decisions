@@ -17,10 +17,13 @@ def main():
     """
     log.info("--- Starting NASDAQ LLM Trader Simulation ---")
 
+    start_date_str = SIMULATION_START_DATE.strftime('%Y-%m-%d')
+    end_date_str = SIMULATION_END_DATE.strftime('%Y-%m-%d')
+
     # Run the backtest
     portfolio_history = run_backtest(
-        start_date=SIMULATION_START_DATE.strftime('%Y-%m-%d'),
-        end_date=SIMULATION_END_DATE.strftime('%Y-%m-%d')
+        start_date=start_date_str,
+        end_date=end_date_str
     )
 
     if not portfolio_history:
@@ -37,26 +40,37 @@ def main():
         log.info(f"- {metric}: {value}")
 
     # 2. Create and Analyze Buy-and-Hold Baseline
+    baseline_history = [] # Initialize baseline_history to an empty list
     try:
         market_data = load_market_data()
-        simulation_dates = pd.to_datetime(market_data.index.unique())
-        simulation_dates = simulation_dates[(simulation_dates >= pd.to_datetime(SIMULATION_START_DATE)) & (simulation_dates <= pd.to_datetime(SIMULATION_END_DATE))]
+        
+        market_data['Date'] = pd.to_datetime(market_data['Date'])
+        simulation_dates_df = market_data[
+            (market_data['Date'] >= pd.to_datetime(start_date_str)) & 
+            (market_data['Date'] <= pd.to_datetime(end_date_str))
+        ]
+        simulation_dates = simulation_dates_df['Date'].unique()
 
-        baseline_history = create_buy_and_hold_baseline(INITIAL_CASH, market_data, TICKERS, simulation_dates)
-        baseline_metrics = calculate_metrics(baseline_history)
-        log.info("Buy-and-Hold Baseline Metrics:")
-        for metric, value in baseline_metrics.items():
-            log.info(f"- {metric}: {value}")
-
-        # 3. Plot Results
-        log.info("Generating performance plot...")
-        plot_performance(portfolio_history, baseline_history)
-        log.info("Plot generated and displayed.")
+        if len(simulation_dates) > 0:
+            # --- FIX: Assign the result to the baseline_history variable ---
+            baseline_history = create_buy_and_hold_baseline(INITIAL_CASH, market_data, TICKERS, simulation_dates)
+            baseline_metrics = calculate_metrics(baseline_history)
+            log.info("Buy-and-Hold Baseline Metrics:")
+            for metric, value in baseline_metrics.items():
+                log.info(f"- {metric}: {value}")
+        else:
+            log.warning("No simulation dates found for baseline calculation.")
 
     except FileNotFoundError as e:
         log.error(f"Could not create baseline: {e}")
     except Exception as e:
         log.error(f"An error occurred during analysis: {e}", exc_info=True)
+
+    # 3. Plot Results
+    # Now, baseline_history will correctly contain the data or be an empty list
+    log.info("Generating performance plot...")
+    plot_performance(portfolio_history, baseline_history)
+    log.info("Plot generated and displayed.")
 
 
 if __name__ == "__main__":

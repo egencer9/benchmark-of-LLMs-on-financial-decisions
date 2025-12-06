@@ -125,8 +125,8 @@ def run_backtest(start_date, end_date):
         try:
             clean_response = llm_response_str.strip().replace('```json', '').replace('```', '')
             decisions = json.loads(clean_response)
-            log.info("Successfully parsed LLM decisions.")
-            log.debug(f"Decisions: {decisions}")
+            # --- IMPROVEMENT: Log the parsed decisions clearly ---
+            log.info(f"LLM Decisions Parsed: {decisions}")
         except (json.JSONDecodeError, TypeError, AttributeError) as e:
             log.error(f"Failed to decode LLM response: {e}. Response was: {llm_response_str}")
             decisions = {}

@@ -1,64 +1,36 @@
-import requests
-import json
-from dotenv import load_dotenv
+import sys
 import os
 
+# Add the project root to the Python path to allow importing from 'src'
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Util.utils import read_yaml
+from src.llm_agent import get_llm_decision
+from src.logger import log
+from config import LLM_PROVIDER
 
-# Note: 'import yaml' is no longer needed here
+def run_demo():
+    """
+    A simple demonstration script to test the LLM provider configured for the project.
+    """
+    log.info("--- LLM Provider Demo ---")
+    log.info(f"Using configured LLM Provider: {LLM_PROVIDER.upper()}")
 
-load_dotenv()
-OPEN_ROUTER_KEY = os.getenv('OPEN_ROUTER_KEY')
+    # A simple, non-financial prompt to test the connection and response.
+    test_prompt = "Explain how AI works in a few words."
 
-# --- 2. Load the model name from the config file ---
-try:
-    config = read_yaml('../config.yaml')  # <-- 3. Use the new function
-    model_name = config['model'][1]  # <-- 4. Get the model key
+    log.info(f"Sending the following prompt to the LLM:\n---_n{test_prompt}\n---")
 
-except FileNotFoundError:
-    print("Error: config.yaml not found.")
-    exit()
-except KeyError:
-    print("Error: 'model' key not found in config.yaml.")
-    exit()
-except Exception as e:
-    # This will catch YAML parsing errors or other issues
-    print(f"An error occurred loading config: {e}")
-    exit()
-# ----------------------------------------------------
+    # Use the same function as the backtester to get the LLM decision.
+    # This ensures we are testing the exact same logic.
+    response = get_llm_decision(test_prompt)
 
+    if response:
+        log.info("Received response from LLM:")
+        # Use the logger to print the response.
+        # The logger will handle multi-line printing gracefully.
+        log.info(f"\n---\n{response}\n---")
+    else:
+        log.error("Did not receive a valid response from the LLM.")
 
-if not OPEN_ROUTER_KEY:
-    print("Error: OPEN_ROUTER_KEY not found. Check your .env file.")
-else:
-    try:
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPEN_ROUTER_KEY}",
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "model": model_name,  # <-- 5. The variable is used here
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "What is the meaning of life?"
-                    }
-                ],
-            })
-        )
-
-        response.raise_for_status()
-
-        # Print just the message content
-        json_response = response.json()
-        message_content = json_response['choices'][0]['message']['content']
-        print(message_content)
-
-    except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
-        print(f"Response content: {response.text}")
-    except Exception as err:
-        print(f"An error occurred: {err}")
+if __name__ == "__main__":
+    run_demo()
