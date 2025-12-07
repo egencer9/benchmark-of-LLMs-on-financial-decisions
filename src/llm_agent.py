@@ -4,9 +4,6 @@ import json
 import time
 from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# Artık sys.path ayarına burada gerek yok, main.py bunu yapıyor.
-
 import config
 from src.logger import log
 
@@ -23,7 +20,7 @@ else:
 clients = {}
 if 'gemini' in config.LLM_PROVIDERS and config.GEMINI_API_KEY:
     genai.configure(api_key=config.GEMINI_API_KEY)
-    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash-lite')
+    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash')
     log.info("Gemini client initialized.")
 if 'openai' in config.LLM_PROVIDERS and config.OPENAI_API_KEY:
     clients['openai'] = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -34,6 +31,7 @@ if 'openrouter' in config.LLM_PROVIDERS and config.OPEN_ROUTER_KEY:
 
 # --- Main Function ---
 def get_llm_decisions(prompt, available_tickers):
+    # ... (This function remains the same)
     if config.DEV_MODE:
         log.warning("DEV_MODE is ON. Returning a single dummy response.")
         return _get_dummy_response(available_tickers)
@@ -71,6 +69,7 @@ def get_llm_decisions(prompt, available_tickers):
     return results.get(primary_provider, _get_dummy_response(available_tickers))
 
 # --- Provider-Specific Functions with Retry Logic ---
+# ... (These functions remain the same)
 def _api_call_with_retry(api_function, provider_name, *args):
     max_retries = 3
     for attempt in range(max_retries):
@@ -129,24 +128,60 @@ def _get_dummy_response(tickers):
     }
     return json.dumps(dummy_decisions, indent=2)
 
+
+# --- FIX: "Bulletproof" Prompt Construction ---
 def construct_master_prompt(portfolio, market_data, news_summaries):
-    log.debug("Constructing master prompt...")
-    prompt = f"""
-    **Objective:** Act as a financial analyst...
-    **Current Portfolio State:**
-    - Cash: ${portfolio['cash']:.2f}
-    - Holdings: {portfolio['holdings']}
-    **Today's Market Data & News Summaries:**
     """
+    Constructs a robust, "bulletproof" prompt to force the LLM to return clean JSON.
+    """
+    log.debug("Constructing bulletproof master prompt...")
+
+    # Dynamically build the market data section
+    market_data_str = ""
     for ticker, data in market_data.items():
-        prompt += f"""
-        ---
-        **Stock: {ticker}**
-        - Current Price: ${data['price']:.2f}
-        - News Summary: {news_summaries.get(ticker, "No relevant news today.")}
-        """
-    prompt += """
-    ---
-    **Instruction:** Based on all the information above...
-    """
+        news_summary = news_summaries.get(ticker, "No relevant news today.")
+        market_data_str += f"""- **Stock: {ticker}**
+  - Current Price: ${data['price']:.2f}
+  - News Summary: {news_summary}\n"""
+
+    prompt = f"""You are a JSON-only API endpoint. Do not explain yourself. Do not use natural language. Your entire response must be a single, valid JSON object and nothing else.
+
+<example_input>
+**Portfolio:**
+- Cash: $50000.00
+- Holdings: {{'NVDA': 10}}
+
+**Market Data:**
+- **Stock: AAPL**
+  - Current Price: $150.00
+  - News Summary: Apple announces new iPhone with minor upgrades.
+- **Stock: GOOG**
+  - Current Price: $2800.00
+  - News Summary: Google faces new antitrust lawsuit in Europe.
+</example_input>
+<example_output>
+{{
+  "AAPL": {{
+    "decision": "HOLD",
+    "reasoning": "News is neutral, market is stable. No immediate action required.",
+    "confidence": 0.75
+  }},
+  "GOOG": {{
+    "decision": "SELL",
+    "reasoning": "Antitrust lawsuit introduces significant short-term risk.",
+    "confidence": 0.8
+  }}
+}}
+</example_output>
+
+<real_input>
+**Portfolio:**
+- Cash: ${portfolio['cash']:.2f}
+- Holdings: {portfolio['holdings']}
+
+**Market Data:**
+{market_data_str}
+</real_input>
+<real_output>
+"""
     return prompt

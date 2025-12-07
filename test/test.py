@@ -25,7 +25,7 @@ def run_test():
         log.info("Gemini API anahtarı başarıyla yapılandırıldı.")
 
         # Kullanacağımız modeli tanımla
-        model_name = 'gemini-2.5-flash-lite'
+        model_name = 'gemini-2.5-flash'
         model = genai.GenerativeModel(model_name)
         log.info(f"Model '{model_name}' başarıyla yüklendi.")
 
