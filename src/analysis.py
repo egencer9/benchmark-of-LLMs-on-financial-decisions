@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from logger import log
+from src.logger import log
 
 def calculate_metrics(portfolio_history, risk_free_rate=0.02):
     """
@@ -63,11 +63,10 @@ def plot_performance(portfolio_history, baseline_history):
     log.info(f"Performance plot saved to {plot_filename}")
     plt.close()
 
-def create_buy_and_hold_baseline(initial_investment, market_data, tickers, simulation_dates):
+def create_buy_and_hold_baseline(initial_investment, tickers, market_data, simulation_dates):
     """
     Creates a baseline portfolio that buys and holds the target stocks.
     """
-    # --- FIX 1: Check list length correctly ---
     if len(simulation_dates) == 0:
         log.warning("Simulation dates are empty, cannot create baseline.")
         return []
@@ -76,7 +75,6 @@ def create_buy_and_hold_baseline(initial_investment, market_data, tickers, simul
     investment_per_ticker = initial_investment / len(tickers)
     shares_to_buy = {}
 
-    # --- FIX 2: Filter by 'Date' column, not index ---
     first_day_data = market_data[market_data['Date'] == simulation_dates[0]]
     if first_day_data.empty:
         log.error("No market data for the first simulation day. Cannot create baseline.")
@@ -95,7 +93,6 @@ def create_buy_and_hold_baseline(initial_investment, market_data, tickers, simul
     baseline_history = []
     for date in simulation_dates:
         daily_value = 0
-        # --- FIX 3: Filter by 'Date' column, not index ---
         current_day_data = market_data[market_data['Date'] == date]
         for ticker, shares in shares_to_buy.items():
             ticker_data = current_day_data[current_day_data['ticker'] == ticker]

@@ -1,3 +1,13 @@
-model: # Using 'models' (plural) is clearer for a list
-  - "minimax/minimax-m2:free"
-  - "google/gemma-3-12b-it:free"
+# Configuration for LLM models, especially for providers like OpenRouter.
+
+# A list of models to be used with the OpenRouter provider.
+# The 'alias' is a friendly name for logging.
+# The 'model_name' is the exact identifier required by the OpenRouter API.
+openrouter_models:
+  - alias: "Nova 2 Lite"
+    model_name: "amazon/nova-2-lite-v1:free"
+  - alias: "Minimax M2"
+    model_name: "minimax/minimax-m2:free"
+  # Add more OpenRouter models here in the future
+  # - alias: "Some Other Model"
+  #   model_name: "vendor/model-name:version"

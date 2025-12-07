@@ -1,125 +1,152 @@
 import google.generativeai as genai
-from openai import OpenAI # Correct import for modern client
-from config import LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY
-from logger import log
+import requests
+import json
+import time
+from openai import OpenAI
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Artık sys.path ayarına burada gerek yok, main.py bunu yapıyor.
+
+import config
+from src.logger import log
+
+# --- Initial Configuration Logging ---
+log.info(f"LLM providers configured: {config.LLM_PROVIDERS}")
+if config.DEV_MODE:
+    log.warning("DEV_MODE is enabled. All LLM calls will return dummy responses.")
+if config.YAML_CONFIG_ERROR:
+    log.warning(f"YAML config issue: {config.YAML_CONFIG_ERROR} OpenRouter models may not be available.")
+else:
+    log.info(f"Successfully loaded {len(config.OPENROUTER_MODELS)} OpenRouter models from config.yaml.")
 
 # --- Client Initialization ---
-gemini_client = None
-openai_client = None
+clients = {}
+if 'gemini' in config.LLM_PROVIDERS and config.GEMINI_API_KEY:
+    genai.configure(api_key=config.GEMINI_API_KEY)
+    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash-lite')
+    log.info("Gemini client initialized.")
+if 'openai' in config.LLM_PROVIDERS and config.OPENAI_API_KEY:
+    clients['openai'] = OpenAI(api_key=config.OPENAI_API_KEY)
+    log.info("OpenAI client initialized.")
+if 'openrouter' in config.LLM_PROVIDERS and config.OPEN_ROUTER_KEY:
+    clients['openrouter'] = {'session': requests.Session()}
+    log.info(f"OpenRouter client initialized for {len(config.OPENROUTER_MODELS)} models.")
 
-if LLM_PROVIDER == 'gemini':
-    if GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-        # --- FIX: Update the model name ---
-        gemini_client = genai.GenerativeModel('gemini-2.5-flash-lite')
-        log.info("LLM Provider: Gemini. Client initialized with model 'gemini-2.5-flash-lite'.")
-    else:
-        log.warning("LLM_PROVIDER is 'gemini' but GEMINI_API_KEY is not set.")
-elif LLM_PROVIDER == 'openai':
-    if OPENAI_API_KEY:
-        openai_client = OpenAI(api_key=OPENAI_API_KEY) # Correct client instantiation
-        log.info("LLM Provider: OpenAI. Client initialized.")
-    else:
-        log.warning("LLM_PROVIDER is 'openai' but OPENAI_API_KEY is not set.")
-else:
-    log.warning(f"LLM_PROVIDER '{LLM_PROVIDER}' is not supported. Using dummy response mode.")
+# --- Main Function ---
+def get_llm_decisions(prompt, available_tickers):
+    if config.DEV_MODE:
+        log.warning("DEV_MODE is ON. Returning a single dummy response.")
+        return _get_dummy_response(available_tickers)
 
+    if not clients:
+        log.error("No valid LLM clients are initialized. Returning dummy response.")
+        return _get_dummy_response(available_tickers)
 
-def get_llm_decision(prompt):
-    """
-    Gets trading decisions from the configured LLM provider.
-    """
-    if LLM_PROVIDER == 'gemini' and gemini_client:
-        return _get_gemini_decision(prompt)
-    elif LLM_PROVIDER == 'openai' and openai_client:
-        return _get_openai_decision(prompt)
-    else:
-        log.warning(f"No valid LLM client initialized. Returning a dummy JSON response.")
-        return _get_dummy_response()
+    tasks = []
+    with ThreadPoolExecutor() as executor:
+        for provider in config.LLM_PROVIDERS:
+            if provider in clients:
+                if provider == 'gemini':
+                    tasks.append(executor.submit(_get_gemini_decision, prompt, available_tickers))
+                elif provider == 'openai':
+                    tasks.append(executor.submit(_get_openai_decision, prompt, available_tickers))
+                elif provider == 'openrouter':
+                    for model_config in config.OPENROUTER_MODELS:
+                        tasks.append(executor.submit(_get_openrouter_decision, prompt, model_config, available_tickers))
 
-def _get_gemini_decision(prompt):
-    """Handles the API call to Google Gemini."""
+    results = {}
+    for future in as_completed(tasks):
+        try:
+            provider_name, response_text = future.result()
+            results[provider_name] = response_text
+            log.info(f"Successfully received response from {provider_name}.")
+            log.debug(f"Response from {provider_name}:\n{response_text}")
+        except Exception as e:
+            log.error(f"A task failed to complete: {e}", exc_info=True)
+
+    primary_provider = config.LLM_PROVIDERS[0]
+    if primary_provider == 'openrouter':
+        primary_provider = config.OPENROUTER_MODELS[0]['alias']
+
+    return results.get(primary_provider, _get_dummy_response(available_tickers))
+
+# --- Provider-Specific Functions with Retry Logic ---
+def _api_call_with_retry(api_function, provider_name, *args):
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return api_function(*args)
+        except Exception as e:
+            if "429" in str(e):
+                wait_time = (2 ** attempt) * 5
+                log.warning(f"Rate limit exceeded for {provider_name}. Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                log.error(f"Error calling {provider_name} API: {e}")
+                raise e
+    raise Exception(f"API call to {provider_name} failed after {max_retries} retries.")
+
+def _get_gemini_decision(prompt, tickers):
+    def api_call():
+        return 'gemini', clients['gemini'].generate_content(prompt).text
     try:
-        log.info("Sending prompt to Gemini API...")
-        response = gemini_client.generate_content(prompt)
-        log.info("Received response from Gemini API.")
-        log.debug(f"Response content:\n{response.text}")
-        return response.text
-    except Exception as e:
-        log.error(f"Error calling Gemini API: {e}", exc_info=True)
-        return _get_dummy_response()
+        return _api_call_with_retry(api_call, 'gemini')
+    except Exception:
+        return 'gemini', _get_dummy_response(tickers)
 
-def _get_openai_decision(prompt):
-    """Handles the API call to OpenAI using the modern client."""
-    try:
-        log.info("Sending prompt to OpenAI API...")
-        response = openai_client.chat.completions.create(
+def _get_openai_decision(prompt, tickers):
+    def api_call():
+        response = clients['openai'].chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a financial analyst providing responses in clean JSON format."},
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "system", "content": "You are a financial analyst..."}, {"role": "user", "content": prompt}]
         )
-        log.info("Received response from OpenAI API.")
-        decision = response.choices[0].message.content
-        log.debug(f"Response content:\n{decision}")
-        return decision
-    except Exception as e:
-        log.error(f"Error calling OpenAI API: {e}", exc_info=True)
-        return _get_dummy_response()
+        return 'openai', response.choices[0].message.content
+    try:
+        return _api_call_with_retry(api_call, 'openai')
+    except Exception:
+        return 'openai', _get_dummy_response(tickers)
 
-def _get_dummy_response():
-    """Returns a dummy JSON response for testing or in case of API failure."""
-    return """
-    {
-      "AAPL": {"decision": "HOLD", "reasoning": "Dummy response: Market is stable.", "confidence": 0.7},
-      "MSFT": {"decision": "BUY", "reasoning": "Dummy response: Positive news.", "confidence": 0.6},
-      "NVDA": {"decision": "SELL", "reasoning": "Dummy response: Overbought.", "confidence": 0.5},
-      "TSLA": {"decision": "HOLD", "reasoning": "Dummy response: Volatile.", "confidence": 0.8},
-      "AMZN": {"decision": "BUY", "reasoning": "Dummy response: Strong fundamentals.", "confidence": 0.75}
+def _get_openrouter_decision(prompt, model_config, tickers):
+    alias = model_config['alias']
+    def api_call():
+        response = clients['openrouter']['session'].post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {config.OPEN_ROUTER_KEY}"},
+            data=json.dumps({"model": model_config['model_name'], "messages": [{"role": "user", "content": prompt}]})
+        )
+        response.raise_for_status()
+        return alias, response.json()['choices'][0]['message']['content']
+    try:
+        return _api_call_with_retry(api_call, alias)
+    except Exception:
+        return alias, _get_dummy_response(tickers)
+
+def _get_dummy_response(tickers):
+    log.info(f"Generating dynamic dummy response for tickers: {tickers}")
+    dummy_decisions = {
+        ticker: {"decision": "HOLD", "reasoning": "Dummy response due to API failure.", "confidence": 0.5}
+        for ticker in tickers
     }
-    """
+    return json.dumps(dummy_decisions, indent=2)
 
 def construct_master_prompt(portfolio, market_data, news_summaries):
-    """
-    Constructs the single master prompt for the LLM, aggregating all data.
-    """
-    # This function remains the same as it is provider-agnostic.
     log.debug("Constructing master prompt...")
     prompt = f"""
-    **Objective:** Act as a financial analyst and decide whether to BUY, SELL, or HOLD for each stock in the portfolio. Provide your response in a single, clean JSON object.
-
-    **Constraints:**
-    1.  Your entire response must be a single JSON object.
-    2.  For each stock, provide a 'decision' ('BUY', 'SELL', 'HOLD'), a brief 'reasoning', and a 'confidence' score (0.0 to 1.0).
-    3.  Base your decisions *only* on the provided data. Do not use external knowledge.
-
+    **Objective:** Act as a financial analyst...
     **Current Portfolio State:**
     - Cash: ${portfolio['cash']:.2f}
     - Holdings: {portfolio['holdings']}
-
     **Today's Market Data & News Summaries:**
     """
-
     for ticker, data in market_data.items():
-        news_summary = news_summaries.get(ticker, "No relevant news today.")
         prompt += f"""
         ---
         **Stock: {ticker}**
         - Current Price: ${data['price']:.2f}
-        - P/E Ratio: {data.get('pe_ratio', 'N/A')}
-        - News Summary: {news_summary}
+        - News Summary: {news_summaries.get(ticker, "No relevant news today.")}
         """
-
     prompt += """
     ---
-    **Instruction:**
-    Based on all the information above, provide your trading decisions for all stocks in the following JSON format:
-    {
-      "TICKER1": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
-      "TICKER2": {"decision": "BUY|SELL|HOLD", "reasoning": "...", "confidence": 0.X},
-      ...
-    }
+    **Instruction:** Based on all the information above...
     """
-    log.debug("Master prompt constructed.")
     return prompt

@@ -5,3 +5,5 @@ python-dotenv
 loguru
 google-generativeai
 openai
+PyYAML
+requests

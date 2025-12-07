@@ -8,7 +8,7 @@ import sys
 # Add project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import NEWS_API_KEY
+from src.config import NEWS_API_KEY  # FIX: Import from src
 from src.logger import log
 
 # --- Robust Path Configuration ---
@@ -24,10 +24,6 @@ END_DATE = datetime.now()
 START_DATE = END_DATE - timedelta(days=30)
 
 def collect_market_data():
-    """
-    Fetches historical OHLCV data for the target stocks and saves it in a
-    clean, long-format CSV file.
-    """
     log.info(f"Fetching market data for {TICKERS} from {START_DATE.strftime('%Y-%m-%d')} to {END_DATE.strftime('%Y-%m-%d')}")
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
@@ -38,11 +34,9 @@ def collect_market_data():
         log.debug(f"Downloading data for {ticker}")
         try:
             stock_data = yf.download(ticker, start=START_DATE, end=END_DATE, progress=False)
-            
             if stock_data.empty:
-                log.warning(f"No data downloaded for {ticker}. It might be delisted or the ticker is incorrect.")
+                log.warning(f"No data downloaded for {ticker}.")
                 continue
-
             stock_data.reset_index(inplace=True)
             stock_data['ticker'] = ticker
             all_data.append(stock_data)
@@ -54,23 +48,18 @@ def collect_market_data():
         return
         
     df = pd.concat(all_data, ignore_index=True)
-
     df['Date'] = pd.to_datetime(df['Date'])
-
     df.to_csv(MARKET_DATA_PATH, index=False)
     log.info(f"Market data saved correctly to: {MARKET_DATA_PATH}")
-    
     try:
         log.info(f"CSV Header: {', '.join(df.columns)}")
     except TypeError:
         log.warning(f"Could not log CSV header. Columns object was not an iterable: {df.columns}")
 
-
 def collect_news_data():
-    """Fetches news articles for the target stocks."""
     log.info(f"Fetching news data for {TICKERS}")
     if not NEWS_API_KEY:
-        log.error("NEWS_API_KEY not found. Please set it in your .env file. Skipping news collection.")
+        log.error("NEWS_API_KEY not found. Please set it in your .env file.")
         return
 
     if not os.path.exists(DATA_DIR):
@@ -78,7 +67,6 @@ def collect_news_data():
 
     newsapi = NewsApiClient(api_key=NEWS_API_KEY)
     all_news = []
-
     for ticker in TICKERS:
         try:
             log.debug(f"Fetching news for {ticker}")
@@ -101,7 +89,6 @@ def collect_news_data():
     df_filtered = df[(df['publishedAt'].dt.tz_localize(None) >= START_DATE) & (df['publishedAt'].dt.tz_localize(None) <= END_DATE)]
     df_filtered.to_csv(NEWS_DATA_PATH, index=False)
     log.info(f"News data saved to: {NEWS_DATA_PATH}")
-
 
 if __name__ == "__main__":
     log.info("--- Starting Data Collection Script ---")
