@@ -1,4 +1,10 @@
 import pandas as pd
+import sys
+import os
+
+# Add the project root directory to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from datetime import datetime, timedelta
 from backtester import run_backtest
 from analysis import calculate_metrics, plot_performance, create_buy_and_hold_baseline
