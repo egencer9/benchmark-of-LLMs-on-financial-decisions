@@ -2,14 +2,11 @@ import sys
 import os
 from datetime import datetime, timedelta
 
-# --- EN DOĞRU ÇÖZÜM: Projenin ana dizinini Python'un arama yoluna ekle ---
-# Bu kod, programın giriş noktası olduğu için SADECE burada olmalıdır.
+# Projenin ana dizinini Python'un arama yoluna ekle
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
-# --------------------------------------------------------------------------
 
-# Artık tüm import'lar projenin kökünden itibaren güvenle yapılabilir.
 import pandas as pd
 from src.backtester import run_backtest
 from src.analysis import calculate_metrics, plot_performance, create_buy_and_hold_baseline

@@ -5,38 +5,42 @@ import os
 from datetime import datetime, timedelta
 import sys
 
-# Add project root to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Projenin ana dizinini Python yoluna ekle
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
 
-from src.config import NEWS_API_KEY  # FIX: Import from src
+import config
 from src.logger import log
 
 # --- Robust Path Configuration ---
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-
 MARKET_DATA_PATH = os.path.join(DATA_DIR, "market_data.csv")
 NEWS_DATA_PATH = os.path.join(DATA_DIR, "news_data.csv")
 
-# Configuration
-TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
-END_DATE = datetime.now()
-START_DATE = END_DATE - timedelta(days=30)
-
 def collect_market_data():
-    log.info(f"Fetching market data for {TICKERS} from {START_DATE.strftime('%Y-%m-%d')} to {END_DATE.strftime('%Y-%m-%d')}")
+    """
+    Fetches historical OHLCV data based on the fixed end date in config.
+    """
+    # --- FIX: Use fixed dates from config instead of system clock ---
+    end_date = pd.to_datetime(config.EVALUATION_END_DATE)
+    start_date = end_date - timedelta(days=30) # Collect 30 days of data for context
+
+    log.info(f"Fetching market data for {config.TICKERS} from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
         log.info(f"Created data directory at: {DATA_DIR}")
 
     all_data = []
-    for ticker in TICKERS:
+    for ticker in config.TICKERS:
         log.debug(f"Downloading data for {ticker}")
         try:
-            stock_data = yf.download(ticker, start=START_DATE, end=END_DATE, progress=False)
+            stock_data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            
             if stock_data.empty:
                 log.warning(f"No data downloaded for {ticker}.")
                 continue
+
             stock_data.reset_index(inplace=True)
             stock_data['ticker'] = ticker
             all_data.append(stock_data)
@@ -51,26 +55,29 @@ def collect_market_data():
     df['Date'] = pd.to_datetime(df['Date'])
     df.to_csv(MARKET_DATA_PATH, index=False)
     log.info(f"Market data saved correctly to: {MARKET_DATA_PATH}")
-    try:
-        log.info(f"CSV Header: {', '.join(df.columns)}")
-    except TypeError:
-        log.warning(f"Could not log CSV header. Columns object was not an iterable: {df.columns}")
 
 def collect_news_data():
-    log.info(f"Fetching news data for {TICKERS}")
-    if not NEWS_API_KEY:
-        log.error("NEWS_API_KEY not found. Please set it in your .env file.")
+    """Fetches news articles based on the fixed end date in config."""
+    # --- FIX: Use fixed dates from config instead of system clock ---
+    end_date = pd.to_datetime(config.EVALUATION_END_DATE)
+    start_date = end_date - timedelta(days=30) # Match the market data period
+
+    log.info(f"Fetching news data for {config.TICKERS}")
+    if not config.NEWS_API_KEY:
+        log.error("NEWS_API_KEY not found. Skipping news collection.")
         return
 
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-
-    newsapi = NewsApiClient(api_key=NEWS_API_KEY)
+    newsapi = NewsApiClient(api_key=config.NEWS_API_KEY)
     all_news = []
-    for ticker in TICKERS:
+    for ticker in config.TICKERS:
         try:
-            log.debug(f"Fetching news for {ticker}")
-            articles = newsapi.get_everything(q=ticker, language='en', sort_by='publishedAt', page_size=100)
+            articles = newsapi.get_everything(
+                q=ticker,
+                from_param=start_date.strftime('%Y-%m-%d'),
+                to=end_date.strftime('%Y-%m-%d'),
+                language='en',
+                sort_by='publishedAt'
+            )
             for article in articles['articles']:
                 all_news.append({
                     'ticker': ticker, 'publishedAt': article['publishedAt'], 'title': article['title'],
@@ -85,13 +92,11 @@ def collect_news_data():
         return
 
     df = pd.DataFrame(all_news)
-    df['publishedAt'] = pd.to_datetime(df['publishedAt'])
-    df_filtered = df[(df['publishedAt'].dt.tz_localize(None) >= START_DATE) & (df['publishedAt'].dt.tz_localize(None) <= END_DATE)]
-    df_filtered.to_csv(NEWS_DATA_PATH, index=False)
+    df.to_csv(NEWS_DATA_PATH, index=False)
     log.info(f"News data saved to: {NEWS_DATA_PATH}")
 
 if __name__ == "__main__":
-    log.info("--- Starting Data Collection Script ---")
+    log.info("--- Starting Data Collection Script (using fixed date) ---")
     collect_market_data()
     collect_news_data()
     log.info("--- Data Collection Finished ---")

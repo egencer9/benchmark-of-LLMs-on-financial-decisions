@@ -1,11 +1,12 @@
 import pandas as pd
 import json
 import math
+import time
 
 # Artık sys.path ayarına burada gerek yok, main.py bunu yapıyor.
 
 from src.data_loader import load_market_data, load_news_data
-from src.llm_agent import construct_master_prompt, get_llm_decisions
+from src.llm_agent import construct_master_prompt, get_llm_decision # FIX: Use singular name
 from src.logger import log
 import config
 
@@ -80,6 +81,8 @@ def run_backtest(start_date, end_date):
     log.info(f"Starting backtest from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} for {len(simulation_dates)} trading days.")
 
     for current_date in simulation_dates:
+        # --- FIX: Add a small delay to avoid hitting API rate limits ---
+        time.sleep(2)
         log.info(f"--- Trading Day: {current_date.strftime('%Y-%m-%d')} ---")
 
         day_data = market_data[market_data['Date'] == current_date]
@@ -102,17 +105,18 @@ def run_backtest(start_date, end_date):
         master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries)
 
         available_tickers = list(current_prices.keys())
-        primary_decision_str = get_llm_decisions(master_prompt, available_tickers)
+        # FIX: Call the correct singular function name
+        decision_str = get_llm_decision(master_prompt, available_tickers)
         
         try:
-            clean_response = primary_decision_str.strip().replace('```json', '').replace('```', '')
+            clean_response = decision_str.strip().replace('```json', '').replace('```', '')
             decisions = json.loads(clean_response)
-            log.info(f"Primary LLM Decisions Parsed: {decisions}")
+            log.info(f"LLM Decisions Parsed: {decisions}")
         except (json.JSONDecodeError, TypeError, AttributeError) as e:
-            log.error(f"Failed to decode primary LLM response: {e}. Response was: {primary_decision_str}")
+            log.error(f"Failed to decode LLM response: {e}. Response was: {decision_str}")
             decisions = {}
 
-        log.info("Executing trades based on primary LLM decisions...")
+        log.info("Executing trades based on LLM decisions...")
         for ticker, decision_data in decisions.items():
             if ticker in current_prices:
                 portfolio.execute_trade(
