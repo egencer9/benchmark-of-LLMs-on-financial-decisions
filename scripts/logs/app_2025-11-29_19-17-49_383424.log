@@ -1,0 +1,11 @@
+2025-11-29 19:17:49 | INFO     | __main__:<module>:87 - --- Starting Data Collection Script ---
+2025-11-29 19:17:49 | INFO     | __main__:collect_market_data:24 - Fetching market data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] from 2025-10-30 to 2025-11-29
+2025-11-29 19:17:49 | DEBUG    | __main__:collect_market_data:31 - Downloading data for AAPL
+2025-11-29 19:17:50 | DEBUG    | __main__:collect_market_data:31 - Downloading data for MSFT
+2025-11-29 19:17:51 | DEBUG    | __main__:collect_market_data:31 - Downloading data for NVDA
+2025-11-29 19:17:51 | DEBUG    | __main__:collect_market_data:31 - Downloading data for TSLA
+2025-11-29 19:17:52 | DEBUG    | __main__:collect_market_data:31 - Downloading data for AMZN
+2025-11-29 19:17:52 | INFO     | __main__:collect_market_data:38 - Market data saved to data/market_data.csv
+2025-11-29 19:17:52 | INFO     | __main__:collect_news_data:42 - Fetching news data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN']
+2025-11-29 19:17:52 | ERROR    | __main__:collect_news_data:44 - NEWS_API_KEY not found. Please set it in your .env file. Skipping news collection.
+2025-11-29 19:17:52 | INFO     | __main__:<module>:90 - --- Data Collection Finished ---

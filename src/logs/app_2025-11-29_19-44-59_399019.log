@@ -1,0 +1,11 @@
+2025-11-29 19:45:00 | INFO     | llm_agent:<module>:8 - Gemini API configured.
+2025-11-29 19:45:00 | INFO     | __main__:main:18 - --- Starting NASDAQ LLM Trader Simulation ---
+2025-11-29 19:45:00 | INFO     | backtester:run_backtest:67 - Loading data for backtest...
+2025-11-29 19:45:00 | INFO     | data_loader:load_market_data:16 - Attempting to load market data from absolute path: /Users/ege/Desktop/Final Year/data/market_data.csv
+2025-11-29 19:45:00 | INFO     | data_loader:load_market_data:26 - Market data loaded successfully. 'Date' is now a regular column.
+2025-11-29 19:45:00 | INFO     | data_loader:load_news_data:31 - Attempting to load news data from absolute path: /Users/ege/Desktop/Final Year/data/news_data.csv
+2025-11-29 19:45:00 | INFO     | data_loader:load_news_data:37 - News data loaded successfully.
+2025-11-29 19:45:00 | INFO     | backtester:__init__:15 - Portfolio initialized with $100,000.00 cash.
+2025-11-29 19:45:00 | INFO     | backtester:run_backtest:85 - Starting backtest from 2025-11-09 to 2025-11-29 for 14 trading days.
+2025-11-29 19:45:00 | INFO     | backtester:run_backtest:88 - --- Trading Day: 2025-11-10 ---
+2025-11-29 19:45:00 | DEBUG    | llm_agent:construct_master_prompt:44 - Constructing master prompt...

@@ -100,5 +100,3 @@ if __name__ == "__main__":
             print("Error: 'companies.yaml' not found. Please create it first.")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-
-# FORK

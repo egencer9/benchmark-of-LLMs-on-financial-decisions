@@ -1,0 +1,7 @@
+2025-11-29 19:17:24 | INFO     | llm_agent:<module>:8 - Gemini API configured.
+2025-11-29 19:17:24 | INFO     | __main__:main:18 - --- Starting NASDAQ LLM Trader Simulation ---
+2025-11-29 19:17:24 | INFO     | backtester:run_backtest:51 - Loading data for backtest...
+2025-11-29 19:17:24 | INFO     | data_loader:load_market_data:11 - Loading market data from data/market_data.csv
+2025-11-29 19:17:24 | ERROR    | data_loader:load_market_data:13 - Market data not found at data/market_data.csv. Run scripts/collect_data.py first.
+2025-11-29 19:17:24 | ERROR    | backtester:run_backtest:55 - Data files not found. Please run 'scripts/collect_data.py' first.
+2025-11-29 19:17:24 | WARNING  | __main__:main:27 - Backtest did not produce any results. Exiting.

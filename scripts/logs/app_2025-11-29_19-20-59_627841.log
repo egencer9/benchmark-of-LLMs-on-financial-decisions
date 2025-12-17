@@ -1,0 +1,21 @@
+2025-11-29 19:20:59 | INFO     | __main__:<module>:87 - --- Starting Data Collection Script ---
+2025-11-29 19:20:59 | INFO     | __main__:collect_market_data:24 - Fetching market data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'] from 2025-10-30 to 2025-11-29
+2025-11-29 19:20:59 | DEBUG    | __main__:collect_market_data:31 - Downloading data for AAPL
+2025-11-29 19:21:00 | DEBUG    | __main__:collect_market_data:31 - Downloading data for MSFT
+2025-11-29 19:21:01 | DEBUG    | __main__:collect_market_data:31 - Downloading data for NVDA
+2025-11-29 19:21:01 | DEBUG    | __main__:collect_market_data:31 - Downloading data for TSLA
+2025-11-29 19:21:02 | DEBUG    | __main__:collect_market_data:31 - Downloading data for AMZN
+2025-11-29 19:21:02 | INFO     | __main__:collect_market_data:38 - Market data saved to data/market_data.csv
+2025-11-29 19:21:02 | INFO     | __main__:collect_news_data:42 - Fetching news data for ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN']
+2025-11-29 19:21:02 | DEBUG    | __main__:collect_news_data:55 - Fetching news for AAPL
+2025-11-29 19:21:02 | ERROR    | __main__:collect_news_data:72 - Could not fetch news for AAPL. Reason: {'status': 'error', 'code': 'apiKeyInvalid', 'message': 'Your API key is invalid or incorrect. Check your key, or go to https://newsapi.org to create a free API key.'}
+2025-11-29 19:21:02 | DEBUG    | __main__:collect_news_data:55 - Fetching news for MSFT
+2025-11-29 19:21:03 | ERROR    | __main__:collect_news_data:72 - Could not fetch news for MSFT. Reason: {'status': 'error', 'code': 'apiKeyInvalid', 'message': 'Your API key is invalid or incorrect. Check your key, or go to https://newsapi.org to create a free API key.'}
+2025-11-29 19:21:03 | DEBUG    | __main__:collect_news_data:55 - Fetching news for NVDA
+2025-11-29 19:21:03 | ERROR    | __main__:collect_news_data:72 - Could not fetch news for NVDA. Reason: {'status': 'error', 'code': 'apiKeyInvalid', 'message': 'Your API key is invalid or incorrect. Check your key, or go to https://newsapi.org to create a free API key.'}
+2025-11-29 19:21:03 | DEBUG    | __main__:collect_news_data:55 - Fetching news for TSLA
+2025-11-29 19:21:03 | ERROR    | __main__:collect_news_data:72 - Could not fetch news for TSLA. Reason: {'status': 'error', 'code': 'apiKeyInvalid', 'message': 'Your API key is invalid or incorrect. Check your key, or go to https://newsapi.org to create a free API key.'}
+2025-11-29 19:21:03 | DEBUG    | __main__:collect_news_data:55 - Fetching news for AMZN
+2025-11-29 19:21:04 | ERROR    | __main__:collect_news_data:72 - Could not fetch news for AMZN. Reason: {'status': 'error', 'code': 'apiKeyInvalid', 'message': 'Your API key is invalid or incorrect. Check your key, or go to https://newsapi.org to create a free API key.'}
+2025-11-29 19:21:04 | WARNING  | __main__:collect_news_data:75 - No news articles were collected.
+2025-11-29 19:21:04 | INFO     | __main__:<module>:90 - --- Data Collection Finished ---
