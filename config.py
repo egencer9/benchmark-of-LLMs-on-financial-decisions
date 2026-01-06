@@ -1,6 +1,7 @@
 import os
 import yaml
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -9,9 +10,20 @@ TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
 INITIAL_CASH = 100000
 SIMULATION_DAYS = 5  # Run for 5 days as requested
 
-# --- FIX: Use a fixed end date to avoid system clock issues ---
-# All scripts will use this date as the reference point.
-EVALUATION_END_DATE = "2024-05-01" 
+# --- Evaluation Date Configuration ---
+# Default behavior: use today's date (UTC) so the pipeline stays current.
+# Optional override: set EVALUATION_END_DATE=YYYY-MM-DD in your .env to pin a fixed date.
+EVALUATION_END_DATE = os.getenv("EVALUATION_END_DATE", "AUTO")
+
+def resolve_evaluation_end_date():
+    """
+    Returns the evaluation end date as a `date` object.
+    - If EVALUATION_END_DATE is "AUTO" (default), uses today's date in UTC.
+    - Otherwise expects format YYYY-MM-DD (e.g., "2026-01-06").
+    """
+    if str(EVALUATION_END_DATE).strip().upper() == "AUTO":
+        return datetime.now(timezone.utc).date()
+    return datetime.strptime(str(EVALUATION_END_DATE).strip(), "%Y-%m-%d").date()
 
 # --- API Keys ---
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")

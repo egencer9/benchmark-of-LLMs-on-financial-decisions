@@ -20,13 +20,19 @@ NEWS_DATA_PATH = os.path.join(DATA_DIR, "news_data.csv")
 
 def collect_market_data():
     """
-    Fetches historical OHLCV data based on the fixed end date in config.
+    Fetches historical OHLCV data based on the evaluation end date in config.
     """
-    # --- FIX: Use fixed dates from config instead of system clock ---
-    end_date = pd.to_datetime(config.EVALUATION_END_DATE)
-    start_date = end_date - timedelta(days=30) # Collect 30 days of data for context
+    # --- FIX: Use the resolved evaluation end date from config ---
+    end_date = config.resolve_evaluation_end_date()          # datetime.date
+    start_date = end_date - timedelta(days=30)               # datetime.date
 
-    log.info(f"Fetching market data for {config.TICKERS} from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    # yfinance 'end' is typically exclusive -> add 1 day to include end_date
+    yf_end_date = end_date + timedelta(days=1)
+
+    log.info(
+        f"Fetching market data for {config.TICKERS} "
+        f"from {start_date.isoformat()} to {end_date.isoformat()}"
+    )
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
         log.info(f"Created data directory at: {DATA_DIR}")
@@ -35,8 +41,13 @@ def collect_market_data():
     for ticker in config.TICKERS:
         log.debug(f"Downloading data for {ticker}")
         try:
-            stock_data = yf.download(ticker, start=start_date, end=end_date, progress=False)
-            
+            stock_data = yf.download(
+                ticker,
+                start=start_date.isoformat(),
+                end=yf_end_date.isoformat(),
+                progress=False
+            )
+
             if stock_data.empty:
                 log.warning(f"No data downloaded for {ticker}.")
                 continue
@@ -50,17 +61,17 @@ def collect_market_data():
     if not all_data:
         log.error("Market data download failed for all tickers. Aborting.")
         return
-        
+
     df = pd.concat(all_data, ignore_index=True)
-    df['Date'] = pd.to_datetime(df['Date'])
+    df['Date'] = pd.to_datetime(df['Date']).dt.date
     df.to_csv(MARKET_DATA_PATH, index=False)
     log.info(f"Market data saved correctly to: {MARKET_DATA_PATH}")
 
 def collect_news_data():
-    """Fetches news articles based on the fixed end date in config."""
-    # --- FIX: Use fixed dates from config instead of system clock ---
-    end_date = pd.to_datetime(config.EVALUATION_END_DATE)
-    start_date = end_date - timedelta(days=30) # Match the market data period
+    """Fetches news articles based on the evaluation end date in config."""
+    # --- FIX: Use the resolved evaluation end date from config ---
+    end_date = config.resolve_evaluation_end_date()          # datetime.date
+    start_date = end_date - timedelta(days=30)               # datetime.date
 
     log.info(f"Fetching news data for {config.TICKERS}")
     if not config.NEWS_API_KEY:
@@ -73,15 +84,18 @@ def collect_news_data():
         try:
             articles = newsapi.get_everything(
                 q=ticker,
-                from_param=start_date.strftime('%Y-%m-%d'),
-                to=end_date.strftime('%Y-%m-%d'),
+                from_param=start_date.isoformat(),
+                to=end_date.isoformat(),
                 language='en',
                 sort_by='publishedAt'
             )
             for article in articles['articles']:
                 all_news.append({
-                    'ticker': ticker, 'publishedAt': article['publishedAt'], 'title': article['title'],
-                    'description': article['description'], 'content': article['content']
+                    'ticker': ticker,
+                    'publishedAt': article['publishedAt'],
+                    'title': article['title'],
+                    'description': article['description'],
+                    'content': article['content']
                 })
             log.info(f"Found {len(articles['articles'])} articles for {ticker}")
         except Exception as e:
