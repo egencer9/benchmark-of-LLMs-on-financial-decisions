@@ -7,7 +7,7 @@ load_dotenv()
 # --- Simulation Configuration ---
 TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
 INITIAL_CASH = 100000
-SIMULATION_DAYS = 7  # Reduced to 7 days (1 week) as requested
+SIMULATION_DAYS = 7
 
 # --- FIX: Use a fixed end date to avoid system clock issues ---
 EVALUATION_END_DATE = "2024-05-01" 
@@ -19,10 +19,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPEN_ROUTER_KEY = os.getenv("OPEN_ROUTER_KEY")
 
 # --- LLM Provider Configuration ---
-LLM_PROVIDER = "gemini" 
+# Set to 'openrouter' to use Xiaomi Mimo V2 Flash
+LLM_PROVIDER = "openrouter"
 
 # --- Development Configuration ---
-DEV_MODE = os.getenv("DEV_MODE", "False").lower() in ('true', '1', 't')
+# Set to False to enable real API calls
+DEV_MODE = False
 
 # --- YAML Model Configuration ---
 OPENROUTER_MODELS = []

@@ -90,8 +90,6 @@ def collect_news_data(start_date, end_date):
 if __name__ == "__main__":
     log.info("--- Starting Data Collection Script ---")
     
-    # --- FIX: Calculate dates once and pass them to both functions ---
-    # This ensures absolute consistency between market and news data periods.
     target_end_date = pd.to_datetime(config.EVALUATION_END_DATE)
     target_start_date = target_end_date - timedelta(days=30)
     

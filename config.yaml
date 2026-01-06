@@ -1,13 +1,17 @@
 # Configuration for LLM models, especially for providers like OpenRouter.
 
 # A list of models to be used with the OpenRouter provider.
-# The 'alias' is a friendly name for logging.
-# The 'model_name' is the exact identifier required by the OpenRouter API.
+# The program will use the FIRST model in this list.
+
 openrouter_models:
-  - alias: "Nova 2 Lite"
-    model_name: "amazon/nova-2-lite-v1:free"
-  - alias: "Minimax M2"
-    model_name: "minimax/minimax-m2:free"
-  # Add more OpenRouter models here in the future
-  # - alias: "Some Other Model"
-  #   model_name: "vendor/model-name:version"
+  # Option 1: Xiaomi Mimo V2 Flash (Free) - Tested and Working!
+  - alias: "Xiaomi Mimo V2 Flash"
+    model_name: "xiaomi/mimo-v2-flash:free"
+
+  # Option 2: Meta Llama 3.1 8B Instruct (Free)
+  - alias: "Llama 3.1 8B Free"
+    model_name: "meta-llama/llama-3-8b-instruct:free"
+
+  # Option 3: Google Gemma 2 9B (Free)
+  - alias: "Gemma 2 9B Free"
+    model_name: "google/gemma-2-9b-it:free"

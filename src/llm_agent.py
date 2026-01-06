@@ -42,7 +42,6 @@ def get_llm_decision(prompt, available_tickers):
 
     try:
         # --- DEBUG: Log the prompt to see what data is being sent ---
-        # Changed from log.debug to log.info to ensure visibility in console
         log.info(f"Sending PROMPT to {provider}:\n{prompt}")
         
         result = None
@@ -100,10 +99,20 @@ def _get_openai_decision(prompt):
 def _get_openrouter_decision(prompt, model_config):
     alias = model_config['alias']
     def api_call():
+        # --- FIX: Add reasoning parameter to match curl request ---
+        payload = {
+            "model": model_config['model_name'],
+            "messages": [{"role": "user", "content": prompt}],
+            "reasoning": {"enabled": True}
+        }
+        
         response = clients['openrouter']['session'].post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {config.OPEN_ROUTER_KEY}"},
-            data=json.dumps({"model": model_config['model_name'], "messages": [{"role": "user", "content": prompt}]})
+            headers={
+                "Authorization": f"Bearer {config.OPEN_ROUTER_KEY}",
+                "Content-Type": "application/json"
+            },
+            data=json.dumps(payload)
         )
         response.raise_for_status()
         return response.json()['choices'][0]['message']['content']
