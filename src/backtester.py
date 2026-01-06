@@ -1,12 +1,12 @@
 import pandas as pd
 import json
 import math
-import time
+from datetime import timedelta
 
 # Artık sys.path ayarına burada gerek yok, main.py bunu yapıyor.
 
 from src.data_loader import load_market_data, load_news_data
-from src.llm_agent import construct_master_prompt, get_llm_decision # FIX: Use singular name
+from src.llm_agent import construct_master_prompt, get_llm_decision
 from src.logger import log
 import config
 
@@ -80,13 +80,7 @@ def run_backtest(start_date, end_date):
 
     log.info(f"Starting backtest from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} for {len(simulation_dates)} trading days.")
 
-    # --- METRIC TRACKING: Format Compliance ---
-    total_llm_calls = 0
-    valid_json_responses = 0
-
     for current_date in simulation_dates:
-        # --- FIX: Add a small delay to avoid hitting API rate limits ---
-        time.sleep(2)
         log.info(f"--- Trading Day: {current_date.strftime('%Y-%m-%d')} ---")
 
         day_data = market_data[market_data['Date'] == current_date]
@@ -99,24 +93,34 @@ def run_backtest(start_date, end_date):
 
         daily_market_data = {ticker: {'price': price} for ticker, price in current_prices.items()}
         
-        news_today = news_data[news_data['publishedAt'].dt.date == current_date.date()]
-        daily_news_summaries = {
-            ticker: " ".join(news_today[news_today['ticker'] == ticker]['description'].dropna())
-            for ticker in current_prices.keys()
-        }
+        # --- FIX: Look back 3 days for news to ensure context ---
+        lookback_start = current_date - timedelta(days=3)
+        news_window = news_data[
+            (news_data['publishedAt'].dt.date >= lookback_start.date()) & 
+            (news_data['publishedAt'].dt.date <= current_date.date())
+        ]
+        
+        daily_news_summaries = {}
+        for ticker in current_prices.keys():
+            ticker_news = news_window[news_window['ticker'] == ticker]
+            # Take the top 3 most recent news items to avoid token overflow
+            recent_news = ticker_news.sort_values(by='publishedAt', ascending=False).head(3)
+            descriptions = " ".join(recent_news['description'].dropna())
+            
+            if descriptions:
+                daily_news_summaries[ticker] = descriptions
+            else:
+                daily_news_summaries[ticker] = "No recent news found."
 
         portfolio_state = {'cash': portfolio.cash, 'holdings': portfolio.holdings}
         master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries)
 
         available_tickers = list(current_prices.keys())
-        # FIX: Call the correct singular function name
         decision_str = get_llm_decision(master_prompt, available_tickers)
-        total_llm_calls += 1
         
         try:
             clean_response = decision_str.strip().replace('```json', '').replace('```', '')
             decisions = json.loads(clean_response)
-            valid_json_responses += 1 # Başarılı JSON ayrıştırma
             log.info(f"LLM Decisions Parsed: {decisions}")
         except (json.JSONDecodeError, TypeError, AttributeError) as e:
             log.error(f"Failed to decode LLM response: {e}. Response was: {decision_str}")
@@ -136,13 +140,6 @@ def run_backtest(start_date, end_date):
 
         portfolio.update_history(current_prices)
         log.info(f"End of day portfolio value: ${portfolio.get_total_value(current_prices):,.2f}")
-
-    # --- REPORT: Format Compliance Rate ---
-    if total_llm_calls > 0:
-        compliance_rate = (valid_json_responses / total_llm_calls) * 100
-        log.info(f"--- Format Compliance Report ---")
-        log.info(f"Total LLM Calls: {total_llm_calls} | Valid JSON: {valid_json_responses}")
-        log.info(f"Format Compliance Rate: {compliance_rate:.2f}%")
 
     log.info("--- Backtest Finished ---")
     return portfolio.history

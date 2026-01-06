@@ -14,7 +14,7 @@ if config.DEV_MODE:
 clients = {}
 if config.LLM_PROVIDER == 'gemini' and config.GEMINI_API_KEY:
     genai.configure(api_key=config.GEMINI_API_KEY)
-    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash')
+    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash-lite')
     log.info("Gemini client initialized.")
 elif config.LLM_PROVIDER == 'openai' and config.OPENAI_API_KEY:
     clients['openai'] = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -42,7 +42,8 @@ def get_llm_decision(prompt, available_tickers):
 
     try:
         # --- DEBUG: Log the prompt to see what data is being sent ---
-        log.debug(f"Sending PROMPT to {provider}:\n{prompt}")
+        # Changed from log.debug to log.info to ensure visibility in console
+        log.info(f"Sending PROMPT to {provider}:\n{prompt}")
         
         result = None
         if provider == 'gemini':
