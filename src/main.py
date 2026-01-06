@@ -20,9 +20,35 @@ def main():
     """
     log.info("--- Starting NASDAQ LLM Trader Simulation ---")
 
-    start_date_str = (datetime.now() - timedelta(days=config.SIMULATION_DAYS)).strftime('%Y-%m-%d')
-    end_date_str = datetime.now().strftime('%Y-%m-%d')
+    # --- FIX: Determine simulation dates directly from the data ---
+    try:
+        log.info("Loading market data to determine simulation period...")
+        market_data = load_market_data()
+        market_data['Date'] = pd.to_datetime(market_data['Date'])
+        
+        if market_data.empty:
+            log.error("Market data is empty. Cannot determine simulation dates. Run 'scripts/collect_data.py'.")
+            return
 
+        # Get the min and max dates available in the CSV
+        available_dates = sorted(market_data['Date'].unique())
+        start_date = available_dates[0]
+        end_date = available_dates[-1]
+        
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
+        log.info(f"Simulation period determined from data: {start_date_str} to {end_date_str}")
+        log.info(f"Total trading days available: {len(available_dates)}")
+
+    except FileNotFoundError:
+        log.error("Market data file not found. Run 'scripts/collect_data.py' first.")
+        return
+    except Exception as e:
+        log.error(f"Error determining simulation dates: {e}", exc_info=True)
+        return
+
+    # Run the backtest with the data-driven dates
     portfolio_history = run_backtest(
         start_date=start_date_str,
         end_date=end_date_str
@@ -41,12 +67,13 @@ def main():
 
     baseline_history = []
     try:
-        market_data = load_market_data()
+        # We already loaded market_data, so we can reuse it or reload it.
+        # Reloading to be safe and consistent with analysis logic.
         
-        market_data['Date'] = pd.to_datetime(market_data['Date'])
+        # Filter dates for baseline (should match the simulation exactly)
         simulation_dates_df = market_data[
-            (market_data['Date'] >= pd.to_datetime(start_date_str)) & 
-            (market_data['Date'] <= pd.to_datetime(end_date_str))
+            (market_data['Date'] >= start_date) & 
+            (market_data['Date'] <= end_date)
         ]
         simulation_dates = simulation_dates_df['Date'].unique()
 
@@ -59,8 +86,6 @@ def main():
         else:
             log.warning("No simulation dates found for baseline calculation.")
 
-    except FileNotFoundError as e:
-        log.error(f"Could not create baseline: {e}")
     except Exception as e:
         log.error(f"An error occurred during analysis: {e}", exc_info=True)
 

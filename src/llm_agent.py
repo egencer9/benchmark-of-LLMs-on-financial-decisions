@@ -14,7 +14,7 @@ if config.DEV_MODE:
 clients = {}
 if config.LLM_PROVIDER == 'gemini' and config.GEMINI_API_KEY:
     genai.configure(api_key=config.GEMINI_API_KEY)
-    clients['gemini'] = genai.GenerativeModel('gemini-1.5-flash-latest')
+    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash')
     log.info("Gemini client initialized.")
 elif config.LLM_PROVIDER == 'openai' and config.OPENAI_API_KEY:
     clients['openai'] = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -41,31 +41,40 @@ def get_llm_decision(prompt, available_tickers):
         return _get_dummy_response(available_tickers)
 
     try:
+        # --- DEBUG: Log the prompt to see what data is being sent ---
+        log.debug(f"Sending PROMPT to {provider}:\n{prompt}")
+        
+        result = None
         if provider == 'gemini':
-            return _get_gemini_decision(prompt)
+            result = _get_gemini_decision(prompt)
         elif provider == 'openai':
-            return _get_openai_decision(prompt)
+            result = _get_openai_decision(prompt)
         elif provider == 'openrouter':
-            # For OpenRouter, we'll just use the first model in the list for simplicity.
             if config.OPENROUTER_MODELS:
                 model_config = config.OPENROUTER_MODELS[0]
-                return _get_openrouter_decision(prompt, model_config)
+                result = _get_openrouter_decision(prompt, model_config)
             else:
                 log.error("OpenRouter is selected, but no models are configured in config.yaml.")
-                return _get_dummy_response(available_tickers)
+                result = _get_dummy_response(available_tickers)
+        
+        log.info("Sleeping for 10 seconds to respect API rate limits...")
+        time.sleep(10)
+        
+        return result
+
     except Exception as e:
         log.error(f"An unexpected error occurred during API call for {provider}: {e}", exc_info=True)
         return _get_dummy_response(available_tickers)
 
 # --- Provider-Specific Functions with Retry Logic ---
 def _api_call_with_retry(api_function, provider_name):
-    max_retries = 2
+    max_retries = 3
     for attempt in range(max_retries):
         try:
             return api_function()
         except Exception as e:
             if "429" in str(e):
-                wait_time = 5 + (attempt * 5)
+                wait_time = 10 + (attempt * 10)
                 log.warning(f"Rate limit exceeded for {provider_name}. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
@@ -109,20 +118,47 @@ def _get_dummy_response(tickers):
 
 def construct_master_prompt(portfolio, market_data, news_summaries):
     log.debug("Constructing bulletproof master prompt...")
+    
+    tickers_list = list(market_data.keys())
+    
     market_data_str = ""
     for ticker, data in market_data.items():
         news_summary = news_summaries.get(ticker, "No relevant news today.")
-        market_data_str += f"""- **Stock: {ticker}**
-  - Current Price: ${data['price']:.2f}
-  - News Summary: {news_summary}\n"""
-
-    return f"""You are a JSON-only API endpoint...
-<real_input>
-**Portfolio:**
-- Cash: ${portfolio['cash']:.2f}
-- Holdings: {portfolio['holdings']}
-**Market Data:**
-{market_data_str}
-</real_input>
-<real_output>
+        market_data_str += f"""
+Stock: {ticker}
+Current Price: ${data['price']:.2f}
+News: {news_summary}
 """
+
+    prompt = f"""
+You are a trading bot. Your goal is to make profitable trading decisions.
+You must respond with a valid JSON object. Do not write any introduction, explanation, or conclusion. Just the JSON.
+
+Current Portfolio:
+Cash: ${portfolio['cash']:.2f}
+Holdings: {portfolio['holdings']}
+
+Market Data:
+{market_data_str}
+
+INSTRUCTIONS:
+For each of the following stocks: {', '.join(tickers_list)}, decide whether to BUY, SELL, or HOLD.
+Return a JSON object where the keys are the stock tickers and the values are objects containing "decision", "reasoning", and "confidence".
+
+EXAMPLE RESPONSE FORMAT:
+{{
+  "AAPL": {{
+    "decision": "BUY",
+    "reasoning": "Positive news about earnings.",
+    "confidence": 0.8
+  }},
+  "MSFT": {{
+    "decision": "HOLD",
+    "reasoning": "Market is uncertain.",
+    "confidence": 0.5
+  }}
+}}
+
+YOUR RESPONSE (JSON ONLY):
+"""
+    return prompt

@@ -18,14 +18,10 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 MARKET_DATA_PATH = os.path.join(DATA_DIR, "market_data.csv")
 NEWS_DATA_PATH = os.path.join(DATA_DIR, "news_data.csv")
 
-def collect_market_data():
+def collect_market_data(start_date, end_date):
     """
-    Fetches historical OHLCV data based on the fixed end date in config.
+    Fetches historical OHLCV data based on the provided date range.
     """
-    # --- FIX: Use fixed dates from config instead of system clock ---
-    end_date = pd.to_datetime(config.EVALUATION_END_DATE)
-    start_date = end_date - timedelta(days=30) # Collect 30 days of data for context
-
     log.info(f"Fetching market data for {config.TICKERS} from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
@@ -56,12 +52,8 @@ def collect_market_data():
     df.to_csv(MARKET_DATA_PATH, index=False)
     log.info(f"Market data saved correctly to: {MARKET_DATA_PATH}")
 
-def collect_news_data():
-    """Fetches news articles based on the fixed end date in config."""
-    # --- FIX: Use fixed dates from config instead of system clock ---
-    end_date = pd.to_datetime(config.EVALUATION_END_DATE)
-    start_date = end_date - timedelta(days=30) # Match the market data period
-
+def collect_news_data(start_date, end_date):
+    """Fetches news articles based on the provided date range."""
     log.info(f"Fetching news data for {config.TICKERS}")
     if not config.NEWS_API_KEY:
         log.error("NEWS_API_KEY not found. Skipping news collection.")
@@ -96,7 +88,14 @@ def collect_news_data():
     log.info(f"News data saved to: {NEWS_DATA_PATH}")
 
 if __name__ == "__main__":
-    log.info("--- Starting Data Collection Script (using fixed date) ---")
-    collect_market_data()
-    collect_news_data()
+    log.info("--- Starting Data Collection Script ---")
+    
+    # --- FIX: Calculate dates once and pass them to both functions ---
+    # This ensures absolute consistency between market and news data periods.
+    target_end_date = pd.to_datetime(config.EVALUATION_END_DATE)
+    target_start_date = target_end_date - timedelta(days=30)
+    
+    collect_market_data(target_start_date, target_end_date)
+    collect_news_data(target_start_date, target_end_date)
+    
     log.info("--- Data Collection Finished ---")

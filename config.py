@@ -7,10 +7,9 @@ load_dotenv()
 # --- Simulation Configuration ---
 TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
 INITIAL_CASH = 100000
-SIMULATION_DAYS = 5  # Run for 5 days as requested
+SIMULATION_DAYS = 20
 
 # --- FIX: Use a fixed end date to avoid system clock issues ---
-# All scripts will use this date as the reference point.
 EVALUATION_END_DATE = "2024-05-01" 
 
 # --- API Keys ---
@@ -20,7 +19,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPEN_ROUTER_KEY = os.getenv("OPEN_ROUTER_KEY")
 
 # --- LLM Provider Configuration ---
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
+# FORCE 'gemini' to override any setting in the .env file
+LLM_PROVIDER = "gemini" 
 
 # --- Development Configuration ---
 DEV_MODE = os.getenv("DEV_MODE", "False").lower() in ('true', '1', 't')

@@ -80,6 +80,10 @@ def run_backtest(start_date, end_date):
 
     log.info(f"Starting backtest from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} for {len(simulation_dates)} trading days.")
 
+    # --- METRIC TRACKING: Format Compliance ---
+    total_llm_calls = 0
+    valid_json_responses = 0
+
     for current_date in simulation_dates:
         # --- FIX: Add a small delay to avoid hitting API rate limits ---
         time.sleep(2)
@@ -107,10 +111,12 @@ def run_backtest(start_date, end_date):
         available_tickers = list(current_prices.keys())
         # FIX: Call the correct singular function name
         decision_str = get_llm_decision(master_prompt, available_tickers)
+        total_llm_calls += 1
         
         try:
             clean_response = decision_str.strip().replace('```json', '').replace('```', '')
             decisions = json.loads(clean_response)
+            valid_json_responses += 1 # Başarılı JSON ayrıştırma
             log.info(f"LLM Decisions Parsed: {decisions}")
         except (json.JSONDecodeError, TypeError, AttributeError) as e:
             log.error(f"Failed to decode LLM response: {e}. Response was: {decision_str}")
@@ -130,6 +136,13 @@ def run_backtest(start_date, end_date):
 
         portfolio.update_history(current_prices)
         log.info(f"End of day portfolio value: ${portfolio.get_total_value(current_prices):,.2f}")
+
+    # --- REPORT: Format Compliance Rate ---
+    if total_llm_calls > 0:
+        compliance_rate = (valid_json_responses / total_llm_calls) * 100
+        log.info(f"--- Format Compliance Report ---")
+        log.info(f"Total LLM Calls: {total_llm_calls} | Valid JSON: {valid_json_responses}")
+        log.info(f"Format Compliance Rate: {compliance_rate:.2f}%")
 
     log.info("--- Backtest Finished ---")
     return portfolio.history
