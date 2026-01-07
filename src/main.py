@@ -45,7 +45,9 @@ def main():
     # 2. Create and Analyze Buy-and-Hold Baseline
     try:
         market_data = load_market_data()
-        simulation_dates = pd.to_datetime(market_data.index.unique())
+        market_data['Date'] = pd.to_datetime(market_data['Date'])
+        market_data.set_index('Date', inplace=True)
+        simulation_dates = market_data.index.unique()
         simulation_dates = simulation_dates[(simulation_dates >= pd.to_datetime(SIMULATION_START_DATE)) & (simulation_dates <= pd.to_datetime(SIMULATION_END_DATE))]
 
         baseline_history = create_buy_and_hold_baseline(INITIAL_CASH, market_data, TICKERS, simulation_dates)
@@ -67,3 +69,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+ 

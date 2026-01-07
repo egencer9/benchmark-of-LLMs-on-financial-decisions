@@ -19,7 +19,7 @@ MARKET_DATA_PATH = os.path.join(DATA_DIR, "market_data.csv")
 NEWS_DATA_PATH = os.path.join(DATA_DIR, "news_data.csv")
 
 # Configuration
-TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
+TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "NDX"]
 END_DATE = datetime.now()
 START_DATE = END_DATE - timedelta(days=30)
 
@@ -38,6 +38,10 @@ def collect_market_data():
         log.debug(f"Downloading data for {ticker}")
         try:
             stock_data = yf.download(ticker, start=START_DATE, end=END_DATE, progress=False)
+            
+            # --- FIX: Handle MultiIndex columns (yfinance update) ---
+            if isinstance(stock_data.columns, pd.MultiIndex):
+                stock_data.columns = stock_data.columns.get_level_values(0)
             
             # --- FIX: Add check for empty DataFrame ---
             if stock_data.empty:
