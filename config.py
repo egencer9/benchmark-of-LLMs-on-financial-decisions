@@ -13,6 +13,17 @@ CONTEXT_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
 INITIAL_CASH = 100000
 SIMULATION_DAYS = 30
 
+# --- Futures Trading Configuration ---
+TRADING_MODE = 'futures' # 'spot' or 'futures'
+FUTURES_CONFIG = {
+    'ticker': 'MNQ',
+    'contract_name': 'Micro E-mini Nasdaq-100',
+    'margin_per_contract': 2000,
+    'point_multiplier': 2.0,
+    'tick_size': 0.25,
+    'tick_value': 0.50
+}
+
 # --- Dynamic Date Configuration ---
 USE_DYNAMIC_DATES = True
 

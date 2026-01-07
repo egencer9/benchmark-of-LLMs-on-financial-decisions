@@ -159,14 +159,24 @@ News/Analysis: {target_news}
 
     prompt = f"""
 You are a sophisticated financial trading agent specializing in the Nasdaq-100 index (NDX).
+You are trading **Micro E-mini Nasdaq-100 (MNQ) Futures**, NOT the spot index directly.
+
+**TRADING MECHANICS (CRITICAL):**
+- **Instrument**: {config.FUTURES_CONFIG['contract_name']} ({config.FUTURES_CONFIG['ticker']})
+- **Index Price**: ~${target_data.get('price', 0):.2f}
+- **Multiplier**: ${config.FUTURES_CONFIG['point_multiplier']} per point
+- **Margin Required**: ${config.FUTURES_CONFIG['margin_per_contract']} per contract
+- **Leverage**: You control a notional value of (Price * Multiplier) ~${target_data.get('price', 0) * 2:.2f} using only ${config.FUTURES_CONFIG['margin_per_contract']} of capital.
+- **P&L**: Proft/Loss = (Exit Price - Entry Price) * {config.FUTURES_CONFIG['point_multiplier']} * Contracts
+
 Your task is to analyze the market data and news for the Nasdaq-100 index and its major components (AAPL, MSFT, NVDA, TSLA, AMZN).
 
 Based on this analysis, you must generate a SINGLE trading decision ('BUY', 'SELL', or 'HOLD') for the Nasdaq-100 index.
 Do NOT generate decisions for the individual component stocks. They are provided only as context to help you gauge the overall market sentiment.
 
 Current Portfolio:
-Cash: ${portfolio['cash']:.2f}
-Holdings: {portfolio['holdings']}
+Cash (Allocatable Margin): ${portfolio['cash']:.2f}
+Current Holdings (Contracts): {portfolio['holdings']}
 
 Market Data:
 {target_info_str}
@@ -175,8 +185,10 @@ Market Data:
 INSTRUCTIONS:
 1. Analyze the news and price action of the major tech stocks (Context) to form a view on the broader tech sector.
 2. Combine this with the specific news and data for the Nasdaq-100 (Target).
-3. Output a valid JSON object containing a SINGLE key: "NDX".
-4. The value for "NDX" must be an object with "decision", "reasoning", and "confidence".
+3. **Consider your Purchasing Power**: With ${portfolio['cash']:.0f} cash, you can buy approx {int(portfolio['cash'] / config.FUTURES_CONFIG['margin_per_contract'])} contracts.
+4. Output a valid JSON object containing a SINGLE key: "NDX".
+5. The value for "NDX" must be an object with "decision", "reasoning", and "confidence".
+
 
 EXAMPLE RESPONSE FORMAT:
 {{

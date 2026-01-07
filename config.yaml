@@ -4,13 +4,13 @@
 # The program will use the FIRST model in this list.
 
 openrouter_models:
-  # Option 2: NVIDIA Nemotron 3 Nano 30B (Free) - New Addition
-  - alias: "NVIDIA Nemotron 3 Nano"
-    model_name: "nvidia/nemotron-3-nano-30b-a3b:free"
-
   # Option 1: Xiaomi Mimo V2 Flash (Free) - Tested and Working!
   - alias: "Xiaomi Mimo V2 Flash"
     model_name: "xiaomi/mimo-v2-flash:free"
+
+  # Option 2: NVIDIA Nemotron 3 Nano 30B (Free) - New Addition
+  - alias: "NVIDIA Nemotron 3 Nano"
+    model_name: "nvidia/nemotron-3-nano-30b-a3b:free"
 
   # Option 3: Meta Llama 3.1 8B Instruct (Free)
   - alias: "Llama 3.1 8B Free"

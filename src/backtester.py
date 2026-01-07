@@ -11,52 +11,171 @@ from src.logger import log
 import config
 
 class Portfolio:
-    """Manages the trading portfolio, including cash, holdings, and transactions."""
+    """
+    Manages the trading portfolio.
+    Supports both Spot (Cash) and Futures (Margin) trading modes based on config.
+    """
     def __init__(self, initial_cash=config.INITIAL_CASH):
         self.initial_cash = initial_cash
         self.cash = initial_cash
-        self.holdings = {}
+        # Holdings structure: {ticker: {'quantity': int, 'avg_price': float}}
+        self.holdings = {} 
         self.history = []
-        log.info(f"Portfolio initialized with ${initial_cash:,.2f} cash.")
+        log.info(f"Portfolio initialized with ${initial_cash:,.2f} cash. Mode: {config.TRADING_MODE}")
 
     def get_total_value(self, current_prices):
-        total_value = self.cash
-        for ticker, shares in self.holdings.items():
-            total_value += shares * current_prices.get(ticker, 0)
-        return total_value
+        """
+        Calculates total portfolio value.
+        Spot: Cash + (Shares * Price)
+        Futures: Cash + (Locked Margin) + (Unrealized P&L)
+        """
+        if config.TRADING_MODE == 'futures':
+            # In futures, 'cash' currently holds the Free Cash (Available Balance).
+            # We need to add back the Margin Used to get 'Total Account Value' before P&L.
+            # Then add Unrealized P&L.
+            
+            total_equity = self.cash
+            
+            for ticker, data in self.holdings.items():
+                quantity = data['quantity']
+                avg_price = data['avg_price']
+                current_price = current_prices.get(ticker, avg_price)
+                
+                # Locked Margin (we deducted this from cash on BUY, so we add it back to represent value)
+                margin_used = quantity * config.FUTURES_CONFIG['margin_per_contract']
+                total_equity += margin_used
+                
+                # Unrealized P&L
+                multiplier = config.FUTURES_CONFIG['point_multiplier']
+                unrealized_pnl = (current_price - avg_price) * multiplier * quantity
+                total_equity += unrealized_pnl
+                
+            return total_equity
+        else:
+            # Spot Mode (Legacy)
+            total_value = self.cash
+            for ticker, shares in self.holdings.items():
+                if isinstance(shares, dict): # Handle if we accidentally use new structure
+                    shares = shares['quantity']
+                total_value += shares * current_prices.get(ticker, 0)
+            return total_value
 
     def update_history(self, current_prices):
         self.history.append(self.get_total_value(current_prices))
 
     def execute_trade(self, ticker, decision, price, confidence, trade_fraction=0.1):
-        total_value = self.get_total_value({ticker: price})
+        if config.TRADING_MODE == 'futures':
+            self._execute_futures_trade(ticker, decision, price, confidence, trade_fraction)
+        else:
+            self._execute_spot_trade(ticker, decision, price, confidence, trade_fraction)
+
+    def _execute_futures_trade(self, ticker, decision, price, confidence, trade_fraction):
+        # Only trade the configured futures ticker
+        # Note: We might receive '^NDX' but we trade 'MNQ' mentally.
+        # The ticker argument here comes from market_data keys (likely ^NDX).
+        
+        margin_req = config.FUTURES_CONFIG['margin_per_contract']
+        multiplier = config.FUTURES_CONFIG['point_multiplier']
+        
+        total_equity = self.get_total_value({ticker: price})
         
         if decision == 'BUY':
-            investment_amount = total_value * trade_fraction * confidence
-            if self.cash >= investment_amount:
-                quantity = math.floor(investment_amount / price)
-                if quantity > 0:
-                    self.cash -= quantity * price
-                    self.holdings[ticker] = self.holdings.get(ticker, 0) + quantity
-                    log.info(f"Executed BUY for {quantity} shares of {ticker} at ${price:.2f} (Value: ${quantity * price:,.2f})")
-                else:
-                    log.info(f"Investment amount for {ticker} is too low to purchase a single share.")
+            # logic: allocate % of EQUITY to Risk or Margin?
+            # User said: "max_risk_per_trade = 1% ... max_contracts = min(floor(risk/stop), hard_cap)"
+            # Simplified: Use trade_fraction of Equity to pay for MARGIN.
+            
+            allocatable_equity = total_equity * trade_fraction * confidence
+            max_contracts_by_margin = math.floor(self.cash / margin_req) # limited by free cash
+            desired_contracts = math.floor(allocatable_equity / margin_req)
+            
+            quantity = min(max_contracts_by_margin, desired_contracts)
+            
+            if quantity > 0:
+                cost = quantity * margin_req
+                self.cash -= cost
+                
+                # Update Holdings
+                current_holding = self.holdings.get(ticker, {'quantity': 0, 'avg_price': 0.0})
+                old_qty = current_holding['quantity']
+                old_avg = current_holding['avg_price']
+                
+                # Weighted Average Price
+                new_avg = ((old_qty * old_avg) + (quantity * price)) / (old_qty + quantity)
+                
+                self.holdings[ticker] = {'quantity': old_qty + quantity, 'avg_price': new_avg}
+                
+                log.info(f"FUTURES BUY: {quantity} MNQ contracts @ {price:.2f}. "
+                         f"Margin Locked: ${cost:,.2f}. Multiplier: ${multiplier}")
             else:
-                log.warning(f"Insufficient cash for BUY of {ticker}. Have ${self.cash:,.2f}, need ${investment_amount:,.2f}")
+                 log.info(f"FUTURES BUY Skipped: Insufficient cash/equity for margin. Need ${margin_req}, Have Free Cash: ${self.cash:,.2f}")
 
         elif decision == 'SELL':
-            if ticker in self.holdings and self.holdings[ticker] > 0:
-                quantity = self.holdings[ticker]
-                self.cash += quantity * price
-                del self.holdings[ticker]
-                log.info(f"Executed SELL for all {quantity} shares of {ticker} at ${price:.2f} (Value: ${quantity * price:,.2f})")
+            # Sell existing long position
+            if ticker in self.holdings:
+                holding = self.holdings[ticker]
+                qty = holding['quantity']
+                avg_price = holding['avg_price']
+                
+                if qty > 0:
+                    # Return Margin
+                    margin_returned = qty * margin_req
+                    
+                    # Realize P&L
+                    pnl = (price - avg_price) * multiplier * qty
+                    
+                    self.cash += margin_returned + pnl
+                    del self.holdings[ticker]
+                    
+                    log.info(f"FUTURES SELL: Closed {qty} contracts @ {price:.2f}. "
+                             f"Entry: {avg_price:.2f}. P&L: ${pnl:,.2f}")
+                else:
+                    log.warning(f"No contracts to sell for {ticker}.")
             else:
-                log.warning(f"No holdings for {ticker} to SELL.")
-        
+                log.warning(f"No position found for {ticker} to SELL.")
+
         elif decision == 'HOLD':
-            log.info(f"Decision is to HOLD {ticker}.")
-        else:
-            log.warning(f"Invalid decision '{decision}' for {ticker}. Skipping.")
+             log.info(f"FUTURES HOLD {ticker}.")
+
+
+    def _execute_spot_trade(self, ticker, decision, price, confidence, trade_fraction):
+            total_value = self.get_total_value({ticker: price})
+            
+            if decision == 'BUY':
+                investment_amount = total_value * trade_fraction * confidence
+                if self.cash >= investment_amount:
+                    quantity = math.floor(investment_amount / price)
+                    if quantity > 0:
+                        self.cash -= quantity * price
+                        # Legacy support: store just int if simple, but let's upgrade to dict for consistency if needed
+                        # For now, keeping legacy simple int for spot
+                        current_qty = self.holdings.get(ticker, 0)
+                        if isinstance(current_qty, dict): current_qty = current_qty['quantity']
+                        
+                        self.holdings[ticker] = current_qty + quantity
+                        log.info(f"Executed BUY for {quantity} shares of {ticker} at ${price:.2f} (Value: ${quantity * price:,.2f})")
+                    else:
+                        log.info(f"Investment amount for {ticker} is too low to purchase a single share.")
+                else:
+                    log.warning(f"Insufficient cash for BUY of {ticker}. Have ${self.cash:,.2f}, need ${investment_amount:,.2f}")
+    
+            elif decision == 'SELL':
+                current_holdings = self.holdings.get(ticker, 0)
+                if isinstance(current_holdings, dict): 
+                    quantity = current_holdings['quantity']
+                else:
+                    quantity = current_holdings
+                
+                if quantity > 0:
+                    self.cash += quantity * price
+                    if ticker in self.holdings: del self.holdings[ticker]
+                    log.info(f"Executed SELL for all {quantity} shares of {ticker} at ${price:.2f} (Value: ${quantity * price:,.2f})")
+                else:
+                    log.warning(f"No holdings for {ticker} to SELL.")
+            
+            elif decision == 'HOLD':
+                log.info(f"Decision is to HOLD {ticker}.")
+            else:
+                log.warning(f"Invalid decision '{decision}' for {ticker}. Skipping.")
 
 
 def run_backtest(start_date, end_date):
