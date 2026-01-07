@@ -23,18 +23,23 @@ DEV_MODE = os.getenv("DEV_MODE", "False").lower() in ('true', '1', 't')
 OPENROUTER_MODELS = []
 ACTIVE_PROVIDERS = [] # List of active model aliases
 YAML_CONFIG_ERROR = None
+API_CALL_INTERVAL = 3 # Default value
 
 try:
     config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
     with open(config_path, 'r') as f:
         yaml_config = yaml.safe_load(f)
-        if yaml_config and 'openrouter_models' in yaml_config:
-            # Filter only active models
-            OPENROUTER_MODELS = [m for m in yaml_config['openrouter_models'] if m.get('active', False)]
-            
-            # Add their aliases to the active providers list
-            for model in OPENROUTER_MODELS:
-                ACTIVE_PROVIDERS.append(model['alias'])
+        if yaml_config:
+            if 'api_call_interval' in yaml_config:
+                API_CALL_INTERVAL = yaml_config['api_call_interval']
+                
+            if 'openrouter_models' in yaml_config:
+                # Filter only active models
+                OPENROUTER_MODELS = [m for m in yaml_config['openrouter_models'] if m.get('active', False)]
+                
+                # Add their aliases to the active providers list
+                for model in OPENROUTER_MODELS:
+                    ACTIVE_PROVIDERS.append(model['alias'])
                 
 except FileNotFoundError:
     YAML_CONFIG_ERROR = f"config.yaml not found at '{config_path}'."

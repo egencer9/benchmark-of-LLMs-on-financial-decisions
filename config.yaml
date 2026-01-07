@@ -3,6 +3,8 @@
 # A list of models to be used with the OpenRouter provider.
 # Set 'active: true' to include the model in the simulation.
 
+api_call_interval: 3
+
 openrouter_models:
   - alias: "Xiaomi Mimo V2 Flash"
     model_name: "xiaomi/mimo-v2-flash:free"

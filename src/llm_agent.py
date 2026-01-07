@@ -46,8 +46,8 @@ def get_llm_decisions(prompt, available_tickers):
             results[alias] = response_text
             
     # Sleep to respect rate limits (global sleep after a batch of requests)
-    log.info("Sleeping for 5 seconds to respect API rate limits...")
-    time.sleep(5)
+    log.info(f"Sleeping for {config.API_CALL_INTERVAL} seconds to respect API rate limits...")
+    time.sleep(config.API_CALL_INTERVAL)
 
     return results
 
