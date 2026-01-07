@@ -183,11 +183,12 @@ Market Data:
 {context_info_str}
 
 INSTRUCTIONS:
-1. Analyze the news and price action of the major tech stocks (Context) to form a view on the broader tech sector.
-2. Combine this with the specific news and data for the Nasdaq-100 (Target).
-3. **Consider your Purchasing Power**: With ${portfolio['cash']:.0f} cash, you can buy approx {int(portfolio['cash'] / config.FUTURES_CONFIG['margin_per_contract'])} contracts.
-4. Output a valid JSON object containing a SINGLE key: "NDX".
-5. The value for "NDX" must be an object with "decision", "reasoning", and "confidence".
+1. **Analyze Constituent Sentiment**: Since news for the Nasdaq-100 index itself is rare, you MUST infer the index's sentiment from the news and price action of its major components (AAPL, MSFT, NVDA, TSLA, AMZN).
+2. **Prioritize Price Action**: If there is absolutely no relevant news for components either, base your decision on the recent price trends (Macroeconomics & Technicals).
+3. **Be Active**: Do NOT default to 'HOLD' just because there is no direct news. If the component technicals or sentiment lean even slightly one way, take a position.
+4. **Consider your Purchasing Power**: With ${portfolio['cash']:.0f} cash, you can buy approx {int(portfolio['cash'] / config.FUTURES_CONFIG['margin_per_contract'])} contracts.
+5. Output a valid JSON object containing a SINGLE key: "NDX".
+6. The value for "NDX" must be an object with "decision", "reasoning", and "confidence".
 
 
 EXAMPLE RESPONSE FORMAT:
