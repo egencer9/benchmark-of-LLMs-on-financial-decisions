@@ -4,17 +4,13 @@
 # The program will use the FIRST model in this list.
 
 openrouter_models:
-  # Option 8: mistralai/devstral-2512:free
+  # Option 3: mistralai/devstral-2512:free
   - alias: "mistralai/devstral-2512:free"
     model_name: "mistralai/devstral-2512:free"
 
   # Option 1: Xiaomi Mimo V2 Flash (Free) - Tested and Working!
   - alias: "Xiaomi Mimo V2 Flash"
     model_name: "xiaomi/mimo-v2-flash:free"
-
-  # Option 6: DeepSeek R1 8B (Free)
-  - alias: "DeepSeek R1 8B Free"
-    model_name: "deepseek/deepseek-r1-0528:free"
 
   # Option 2: NVIDIA Nemotron 3 Nano 30B (Free) - New Addition
   - alias: "NVIDIA Nemotron 3 Nano"
