@@ -39,19 +39,34 @@ def calculate_metrics(portfolio_history, risk_free_rate=0.02):
     log.info(f"Metrics calculated: {metrics}")
     return metrics
 
-def plot_performance(portfolio_history, baseline_history):
+def plot_performance(portfolio_data, baseline_history):
     """
-    Plots the portfolio value against a baseline.
+    Plots the portfolio value against a baseline. 
+    portfolio_data can be a list (single run) or a dict (multi-model run).
     """
-    if not portfolio_history:
-        log.warning("Cannot plot empty portfolio history.")
+    if not portfolio_data:
+        log.warning("Cannot plot empty portfolio data.")
         return
 
     log.info("Plotting portfolio performance against baseline.")
     plt.figure(figsize=(14, 7))
-    plt.plot(portfolio_history, label="LLM Agent Portfolio", color='blue')
+    
+    # Handle both single list and dictionary of lists
+    if isinstance(portfolio_data, list):
+        plt.plot(portfolio_data, label="LLM Agent Portfolio", color='blue', linewidth=2)
+    elif isinstance(portfolio_data, dict):
+        # Multi-model support
+        # Define a color palette to ensure distinction
+        colors = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#8c564b'] # Blue, Green, Red, Purple, Brown
+        
+        for i, (model_name, history) in enumerate(portfolio_data.items()):
+            # Cycle through colors
+            color = colors[i % len(colors)]
+            plt.plot(history, label=model_name, color=color, linewidth=2)
+            
     if baseline_history:
-        plt.plot(baseline_history, label="Buy and Hold Baseline", linestyle='--', color='orange')
+        plt.plot(baseline_history, label="Buy and Hold Baseline", linestyle='--', color='orange', linewidth=2)
+
     plt.title("Portfolio Performance vs. Buy and Hold")
     plt.xlabel("Trading Days")
     plt.ylabel("Portfolio Value ($)")

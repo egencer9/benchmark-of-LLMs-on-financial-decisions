@@ -59,7 +59,7 @@ class Portfolio:
             log.warning(f"Invalid decision '{decision}' for {ticker}. Skipping.")
 
 
-def run_backtest(start_date, end_date):
+def run_backtest(start_date, end_date, model_config=None):
     """Main backtesting loop."""
     try:
         log.info("Loading data for backtest...")
@@ -116,7 +116,7 @@ def run_backtest(start_date, end_date):
         master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries)
 
         available_tickers = list(current_prices.keys())
-        decision_str = get_llm_decision(master_prompt, available_tickers)
+        decision_str = get_llm_decision(master_prompt, available_tickers, model_config)
         
         try:
             clean_response = decision_str.strip().replace('```json', '').replace('```', '')

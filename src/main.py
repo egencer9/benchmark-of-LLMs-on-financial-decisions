@@ -48,22 +48,43 @@ def main():
         log.error(f"Error determining simulation dates: {e}", exc_info=True)
         return
 
-    # Run the backtest with the data-driven dates
-    portfolio_history = run_backtest(
-        start_date=start_date_str,
-        end_date=end_date_str
-    )
-
-    if not portfolio_history:
-        log.warning("Backtest did not produce any results. Exiting.")
+    # --- MULTI-MODEL BACKTEST LOOP ---
+    active_models = [m for m in config.OPENROUTER_MODELS if m.get('active')]
+    
+    if not active_models and config.LLM_PROVIDER == 'openrouter':
+        log.warning("No active models found in config.yaml. Please set 'active: true' for at least one model.")
         return
+
+    all_model_results = {}
+
+    # If provider is NOT openrouter (e.g. gemini), run once as before
+    if config.LLM_PROVIDER != 'openrouter':
+        # Create a dummy config wrapper for consistency
+        active_models = [{'alias': config.LLM_PROVIDER.capitalize(), 'provider': config.LLM_PROVIDER}]
+
+    for model_cfg in active_models:
+        model_name = model_cfg.get('alias', 'Unknown Model')
+        log.info(f"=== Running Backtest for Model: {model_name} ===")
+        
+        history = run_backtest(
+            start_date=start_date_str,
+            end_date=end_date_str,
+            model_config=model_cfg
+        )
+        
+        if history:
+            all_model_results[model_name] = history
+        else:
+            log.warning(f"Backtest failed or returned no history for {model_name}")
 
     log.info("--- Starting Performance Analysis ---")
 
-    metrics = calculate_metrics(portfolio_history)
-    log.info("LLM Agent Metrics:")
-    for metric, value in metrics.items():
-        log.info(f"- {metric}: {value}")
+    # Calculate metrics for each model
+    for model_name, history in all_model_results.items():
+        log.info(f"--- Metrics for {model_name} ---")
+        metrics = calculate_metrics(history)
+        for metric, value in metrics.items():
+            log.info(f"- {metric}: {value}")
 
     baseline_history = []
     try:
@@ -90,7 +111,8 @@ def main():
         log.error(f"An error occurred during analysis: {e}", exc_info=True)
 
     log.info("Generating performance plot...")
-    plot_performance(portfolio_history, baseline_history)
+    log.info(f"Models to plot: {list(all_model_results.keys())}")
+    plot_performance(all_model_results, baseline_history)
     log.info("Plot generated and displayed.")
 
 

@@ -27,9 +27,10 @@ elif config.LLM_PROVIDER == 'openrouter' and config.OPEN_ROUTER_KEY:
         log.warning(f"OpenRouter client initialized, but config.yaml has issues: {config.YAML_CONFIG_ERROR}")
 
 # --- Main Function ---
-def get_llm_decision(prompt, available_tickers):
+def get_llm_decision(prompt, available_tickers, model_config=None):
     """
     Gets a trading decision from the single configured LLM provider.
+    If model_config is provided, it overrides the global configuration for OpenRouter.
     """
     if config.DEV_MODE:
         log.warning("DEV_MODE is ON. Returning a dummy response.")
@@ -50,15 +51,17 @@ def get_llm_decision(prompt, available_tickers):
         elif provider == 'openai':
             result = _get_openai_decision(prompt)
         elif provider == 'openrouter':
-            if config.OPENROUTER_MODELS:
-                model_config = config.OPENROUTER_MODELS[0]
-                result = _get_openrouter_decision(prompt, model_config)
+            # Use the passed model_config if available, otherwise fallback to the first one
+            target_config = model_config if model_config else (config.OPENROUTER_MODELS[0] if config.OPENROUTER_MODELS else None)
+            
+            if target_config:
+                result = _get_openrouter_decision(prompt, target_config)
             else:
                 log.error("OpenRouter is selected, but no models are configured in config.yaml.")
                 result = _get_dummy_response(available_tickers)
         
-        log.info("Sleeping for 10 seconds to respect API rate limits...")
-        time.sleep(10)
+        log.info("Sleeping for 3 seconds to respect API rate limits...")
+        time.sleep(3)
         
         return result
 
@@ -112,7 +115,8 @@ def _get_openrouter_decision(prompt, model_config):
                 "Authorization": f"Bearer {config.OPEN_ROUTER_KEY}",
                 "Content-Type": "application/json"
             },
-            data=json.dumps(payload)
+            data=json.dumps(payload),
+            timeout=30   # FIX: 30 saniyeye düşürdük (Daha hızlı pes etsin)
         )
         response.raise_for_status()
         return response.json()['choices'][0]['message']['content']
