@@ -78,7 +78,7 @@ def main():
         simulation_dates = simulation_dates_df['Date'].unique()
 
         if len(simulation_dates) > 0:
-            baseline_history = create_buy_and_hold_baseline(config.INITIAL_CASH, config.TICKERS, market_data, simulation_dates)
+            baseline_history = create_buy_and_hold_baseline(config.INITIAL_CASH, [config.TARGET_TICKER], market_data, simulation_dates)
             baseline_metrics = calculate_metrics(baseline_history)
             log.info("Buy-and-Hold Baseline Metrics:")
             for metric, value in baseline_metrics.items():

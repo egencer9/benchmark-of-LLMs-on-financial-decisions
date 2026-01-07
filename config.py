@@ -1,16 +1,26 @@
 import os
 import yaml
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # --- Simulation Configuration ---
-TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
-INITIAL_CASH = 100000
-SIMULATION_DAYS = 7
+TICKERS = ["^NDX", "AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
+TARGET_TICKER = "^NDX"
+CONTEXT_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
 
-# --- FIX: Use a fixed end date to avoid system clock issues ---
-EVALUATION_END_DATE = "2024-05-01" 
+INITIAL_CASH = 100000
+SIMULATION_DAYS = 30
+
+# --- Dynamic Date Configuration ---
+USE_DYNAMIC_DATES = True
+
+if USE_DYNAMIC_DATES:
+    EVALUATION_END_DATE = datetime.now().strftime("%Y-%m-%d")
+else:
+    # --- FIX: Use a fixed end date to avoid system clock issues ---
+    EVALUATION_END_DATE = "2024-05-01" 
 
 # --- API Keys ---
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")

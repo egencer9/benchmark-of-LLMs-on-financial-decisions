@@ -119,53 +119,71 @@ def _get_openrouter_decision(prompt, model_config):
     return _api_call_with_retry(api_call, alias)
 
 def _get_dummy_response(tickers):
-    log.info(f"Generating dynamic dummy response for tickers: {tickers}")
+    # Ignore the input tickers list (which might contain everything)
+    # Output only for the target ticker as NDX
+    target_output_key = "NDX"
+    log.info(f"Generating dynamic dummy response for {target_output_key}")
+    
     dummy_decisions = {
-        ticker: {"decision": "HOLD", "reasoning": "Dummy response due to API failure.", "confidence": 0.5}
-        for ticker in tickers
+        target_output_key: {"decision": "HOLD", "reasoning": "Dummy response due to API failure.", "confidence": 0.5}
     }
     return json.dumps(dummy_decisions, indent=2)
 
 def construct_master_prompt(portfolio, market_data, news_summaries):
-    log.debug("Constructing bulletproof master prompt...")
+    log.debug("Constructing prompt for NDX trading...")
     
-    tickers_list = list(market_data.keys())
+    target_ticker = config.TARGET_TICKER
+    context_tickers = config.CONTEXT_TICKERS
     
-    market_data_str = ""
-    for ticker, data in market_data.items():
-        news_summary = news_summaries.get(ticker, "No relevant news today.")
-        market_data_str += f"""
-Stock: {ticker}
-Current Price: ${data['price']:.2f}
-News: {news_summary}
+    # --- Format Target Data ---
+    target_data = market_data.get(target_ticker, {'price': 0})
+    target_news = news_summaries.get(target_ticker, "No specific news for the index.")
+    
+    target_info_str = f"""
+TARGET ASSET: {target_ticker} (Nasdaq-100)
+Current Level: ${target_data['price']:.2f}
+News/Analysis: {target_news}
+"""
+
+    # --- Format Context Data ---
+    context_info_str = "MARKET CONTEXT (Major Tech Stocks - Use for Sentiment Analysis Only):\\n"
+    for ticker in context_tickers:
+        if ticker in market_data:
+            data = market_data[ticker]
+            news = news_summaries.get(ticker, "No recent news.")
+            context_info_str += f"""
+- {ticker}:
+  Price: ${data['price']:.2f}
+  News: {news}
 """
 
     prompt = f"""
-You are a trading bot. Your goal is to make profitable trading decisions.
-You must respond with a valid JSON object. Do not write any introduction, explanation, or conclusion. Just the JSON.
+You are a sophisticated financial trading agent specializing in the Nasdaq-100 index (NDX).
+Your task is to analyze the market data and news for the Nasdaq-100 index and its major components (AAPL, MSFT, NVDA, TSLA, AMZN).
+
+Based on this analysis, you must generate a SINGLE trading decision ('BUY', 'SELL', or 'HOLD') for the Nasdaq-100 index.
+Do NOT generate decisions for the individual component stocks. They are provided only as context to help you gauge the overall market sentiment.
 
 Current Portfolio:
 Cash: ${portfolio['cash']:.2f}
 Holdings: {portfolio['holdings']}
 
 Market Data:
-{market_data_str}
+{target_info_str}
+{context_info_str}
 
 INSTRUCTIONS:
-For each of the following stocks: {', '.join(tickers_list)}, decide whether to BUY, SELL, or HOLD.
-Return a JSON object where the keys are the stock tickers and the values are objects containing "decision", "reasoning", and "confidence".
+1. Analyze the news and price action of the major tech stocks (Context) to form a view on the broader tech sector.
+2. Combine this with the specific news and data for the Nasdaq-100 (Target).
+3. Output a valid JSON object containing a SINGLE key: "NDX".
+4. The value for "NDX" must be an object with "decision", "reasoning", and "confidence".
 
 EXAMPLE RESPONSE FORMAT:
 {{
-  "AAPL": {{
+  "NDX": {{
     "decision": "BUY",
-    "reasoning": "Positive news about earnings.",
-    "confidence": 0.8
-  }},
-  "MSFT": {{
-    "decision": "HOLD",
-    "reasoning": "Market is uncertain.",
-    "confidence": 0.5
+    "reasoning": "Strong earnings from AAPL and MSFT are lifting the tech sector, despite mixed signals from TSLA.",
+    "confidence": 0.85
   }}
 }}
 

@@ -128,11 +128,21 @@ def run_backtest(start_date, end_date):
 
         log.info("Executing trades based on LLM decisions...")
         for ticker, decision_data in decisions.items():
-            if ticker in current_prices:
+            # Map "NDX" from LLM JSON to "^NDX" in market data if needed
+            trade_ticker = ticker
+            if ticker == "NDX" and config.TARGET_TICKER == "^NDX":
+                trade_ticker = config.TARGET_TICKER
+            
+            # CRITICAL: Only allow trading on the target ticker
+            if trade_ticker != config.TARGET_TICKER:
+                log.warning(f"Ignoring decision for {ticker} (mapped to {trade_ticker}). Only trading {config.TARGET_TICKER}.")
+                continue
+
+            if trade_ticker in current_prices:
                 portfolio.execute_trade(
-                    ticker=ticker,
+                    ticker=trade_ticker,
                     decision=decision_data.get('decision'),
-                    price=current_prices[ticker],
+                    price=current_prices[trade_ticker],
                     confidence=decision_data.get('confidence', 0.5)
                 )
             else:
