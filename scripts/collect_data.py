@@ -33,6 +33,10 @@ def collect_market_data(start_date, end_date):
         try:
             stock_data = yf.download(ticker, start=start_date, end=end_date, progress=False)
             
+            # --- FIX: Flatten MultiIndex columns if present (recent yfinance update) ---
+            if isinstance(stock_data.columns, pd.MultiIndex):
+                stock_data.columns = stock_data.columns.get_level_values(0)
+
             if stock_data.empty:
                 log.warning(f"No data downloaded for {ticker}.")
                 continue
