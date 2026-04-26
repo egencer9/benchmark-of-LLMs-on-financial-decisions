@@ -1,13 +1,17 @@
 # Configuration for LLM models, especially for providers like OpenRouter.
 
 # A list of models to be used with the OpenRouter provider.
-# The 'alias' is a friendly name for logging.
-# The 'model_name' is the exact identifier required by the OpenRouter API.
+# The program will use the FIRST model in this list.
+
 openrouter_models:
-  - alias: "Nova 2 Lite"
-    model_name: "amazon/nova-2-lite-v1:free"
-  - alias: "Minimax M2"
-    model_name: "minimax/minimax-m2:free"
-  # Add more OpenRouter models here in the future
-  # - alias: "Some Other Model"
-  #   model_name: "vendor/model-name:version"
+  - alias: "NVIDIA Nemotron Nano 30B"
+    model_name: "nvidia/nemotron-3-nano-30b-a3b:free"
+
+  - alias: "NVIDIA Nemotron Super 120B"
+    model_name: "nvidia/nemotron-3-super-120b-a12b:free"
+
+  - alias: "OpenAI GPT OSS 120B"
+    model_name: "openai/gpt-oss-120b:free"
+
+  - alias: "Google Gemma 3 27B"
+    model_name: "google/gemma-3-27b-it:free"

@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from logger import log
+from src.logger import log
 
 # --- Robust Path Configuration ---
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -1,29 +1,68 @@
 import os
 import yaml
+from datetime import datetime
 from dotenv import load_dotenv
-from datetime import datetime, timezone
 
 load_dotenv()
 
 # --- Simulation Configuration ---
-TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"]
-INITIAL_CASH = 100000
-SIMULATION_DAYS = 5  # Run for 5 days as requested
+# BIST30 constituents (yfinance uses .IS suffix for Borsa Istanbul)
+TICKERS = [
+    "AKBNK.IS", "ARCLK.IS", "ASELS.IS", "BIMAS.IS", "CCOLA.IS",
+    "DOHOL.IS", "EKGYO.IS", "EREGL.IS", "FROTO.IS", "GARAN.IS",
+    "HALKB.IS", "ISCTR.IS", "KCHOL.IS", "KRDMD.IS", "MGROS.IS",
+    "OTKAR.IS", "PETKM.IS", "PGSUS.IS", "SAHOL.IS", "SASA.IS",
+    "SISE.IS", "SOKM.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS",
+    "TKFEN.IS", "TOASO.IS", "TUPRS.IS", "VAKBN.IS", "YKBNK.IS"
+]
 
-# --- Evaluation Date Configuration ---
-# Default behavior: use today's date (UTC) so the pipeline stays current.
-# Optional override: set EVALUATION_END_DATE=YYYY-MM-DD in your .env to pin a fixed date.
-EVALUATION_END_DATE = os.getenv("EVALUATION_END_DATE", "AUTO")
+# Company names used for news search queries (BIST tickers don't match news well)
+COMPANY_NAMES = {
+    "AKBNK.IS": "Akbank",
+    "ARCLK.IS": "Arcelik",
+    "ASELS.IS": "Aselsan",
+    "BIMAS.IS": "BIM Birlesik Magazalar",
+    "CCOLA.IS": "Coca-Cola Icecek",
+    "DOHOL.IS": "Dogan Holding",
+    "EKGYO.IS": "Emlak Konut",
+    "EREGL.IS": "Eregli Demir Celik",
+    "FROTO.IS": "Ford Otosan",
+    "GARAN.IS": "Garanti BBVA",
+    "HALKB.IS": "Halkbank",
+    "ISCTR.IS": "Is Bankasi",
+    "KCHOL.IS": "Koc Holding",
+    "KRDMD.IS": "Kardemir",
+    "MGROS.IS": "Migros",
+    "OTKAR.IS": "Otokar",
+    "PETKM.IS": "Petkim",
+    "PGSUS.IS": "Pegasus Airlines",
+    "SAHOL.IS": "Sabanci Holding",
+    "SASA.IS": "SASA Polyester",
+    "SISE.IS": "Sisecam",
+    "SOKM.IS": "Sok Marketler",
+    "TAVHL.IS": "TAV Airports",
+    "TCELL.IS": "Turkcell",
+    "THYAO.IS": "Turkish Airlines",
+    "TKFEN.IS": "Tekfen Holding",
+    "TOASO.IS": "Tofas",
+    "TUPRS.IS": "Tupras",
+    "VAKBN.IS": "Vakifbank",
+    "YKBNK.IS": "Yapi Kredi",
+}
 
-def resolve_evaluation_end_date():
-    """
-    Returns the evaluation end date as a `date` object.
-    - If EVALUATION_END_DATE is "AUTO" (default), uses today's date in UTC.
-    - Otherwise expects format YYYY-MM-DD (e.g., "2026-01-06").
-    """
-    if str(EVALUATION_END_DATE).strip().upper() == "AUTO":
-        return datetime.now(timezone.utc).date()
-    return datetime.strptime(str(EVALUATION_END_DATE).strip(), "%Y-%m-%d").date()
+INITIAL_CASH = 1000000  # 1 milyon TRY
+SIMULATION_DAYS = 30
+
+# --- Trading Configuration ---
+TRADING_MODE = 'spot'  # BIST30 icin spot trading
+
+# --- Dynamic Date Configuration ---
+USE_DYNAMIC_DATES = True
+
+if USE_DYNAMIC_DATES:
+    EVALUATION_END_DATE = datetime.now().strftime("%Y-%m-%d")
+else:
+    EVALUATION_END_DATE = "2024-05-01"
 
 # --- API Keys ---
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
@@ -32,10 +71,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPEN_ROUTER_KEY = os.getenv("OPEN_ROUTER_KEY")
 
 # --- LLM Provider Configuration ---
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
+LLM_PROVIDER = "openrouter"
 
 # --- Development Configuration ---
-DEV_MODE = os.getenv("DEV_MODE", "False").lower() in ('true', '1', 't')
+DEV_MODE = False
 
 # --- YAML Model Configuration ---
 OPENROUTER_MODELS = []
