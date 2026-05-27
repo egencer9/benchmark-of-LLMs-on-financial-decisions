@@ -9,14 +9,16 @@ from src.logger import log
 import config
 
 class Portfolio:
-    """BIST30 spot trading portfolio in Turkish Lira (TRY)."""
+    """Spot trading portfolio."""
 
     def __init__(self, initial_cash=config.INITIAL_CASH):
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self.holdings = {}  # {ticker: shares}
         self.history = []
-        log.info(f"Portfolio initialized with ₺{initial_cash:,.2f} TRY")
+        self.detailed_history = []
+        self.trades = []
+        log.info(f"Portfolio initialized with {initial_cash:,.2f}")
 
     def get_total_value(self, current_prices):
         total = self.cash
@@ -24,11 +26,19 @@ class Portfolio:
             total += shares * current_prices.get(ticker, 0)
         return total
 
-    def update_history(self, current_prices):
-        self.history.append(self.get_total_value(current_prices))
+    def update_history(self, current_prices, date_str=""):
+        total_val = self.get_total_value(current_prices)
+        self.history.append(total_val)
+        self.detailed_history.append({
+            "date": date_str if date_str else str(len(self.history)),
+            "total_value": total_val,
+            "cash": self.cash,
+            "holdings": {k: v for k, v in self.holdings.items() if v > 0}
+        })
 
-    def execute_trade(self, ticker, decision, price, confidence, trade_fraction=0.1):
+    def execute_trade(self, ticker, decision, price, confidence, reasoning="", trade_fraction=0.1):
         total_value = self.get_total_value({ticker: price})
+        quantity = 0
 
         if decision == 'BUY':
             investment_amount = total_value * trade_fraction * confidence
@@ -37,18 +47,18 @@ class Portfolio:
                 if quantity > 0:
                     self.cash -= quantity * price
                     self.holdings[ticker] = self.holdings.get(ticker, 0) + quantity
-                    log.info(f"BUY {quantity} shares of {ticker} @ ₺{price:.2f} (₺{quantity * price:,.2f})")
+                    log.info(f"BUY {quantity} shares of {ticker} @ {price:.2f} ({quantity * price:,.2f})")
                 else:
-                    log.info(f"Investment too small for one share of {ticker} (₺{investment_amount:.2f} < ₺{price:.2f})")
+                    log.info(f"Investment too small for one share of {ticker} ({investment_amount:.2f} < {price:.2f})")
             else:
-                log.warning(f"Insufficient cash for BUY {ticker}. Have ₺{self.cash:,.2f}, need ₺{investment_amount:,.2f}")
+                log.warning(f"Insufficient cash for BUY {ticker}. Have {self.cash:,.2f}, need {investment_amount:,.2f}")
 
         elif decision == 'SELL':
             quantity = self.holdings.get(ticker, 0)
             if quantity > 0:
                 self.cash += quantity * price
                 del self.holdings[ticker]
-                log.info(f"SELL {quantity} shares of {ticker} @ ₺{price:.2f} (₺{quantity * price:,.2f})")
+                log.info(f"SELL {quantity} shares of {ticker} @ {price:.2f} ({quantity * price:,.2f})")
             else:
                 log.warning(f"No holdings to SELL for {ticker}.")
 
@@ -56,21 +66,32 @@ class Portfolio:
             log.info(f"HOLD {ticker}.")
         else:
             log.warning(f"Invalid decision '{decision}' for {ticker}. Skipping.")
+            return
+
+        self.trades.append({
+            "ticker": ticker,
+            "decision": decision,
+            "price": price,
+            "quantity": quantity,
+            "value": quantity * price,
+            "confidence": confidence,
+            "reasoning": reasoning
+        })
 
 
-def run_backtest(start_date, end_date, model_config=None):
-    """Main backtesting loop for BIST30 spot trading."""
+def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30"):
+    """Main backtesting loop for spot trading."""
     try:
-        log.info("Loading market data for backtest...")
-        market_data = load_market_data()
+        log.info(f"Loading market data for exchange '{exchange}' backtest...")
+        market_data = load_market_data(exchange=exchange)
     except FileNotFoundError:
-        log.error("Market data not found. Please run 'scripts/collect_data.py' first.")
+        log.error(f"Market data for exchange '{exchange}' not found. Please run collection first.")
         return []
 
     try:
-        news_data = load_news_data()
+        news_data = load_news_data(exchange=exchange)
     except FileNotFoundError:
-        log.warning("News data not found — proceeding without news (LLM will rely on price action only).")
+        log.warning(f"News data for exchange '{exchange}' not found — proceeding without news (LLM will rely on price action only).")
         news_data = pd.DataFrame(columns=['ticker', 'publishedAt', 'title', 'description', 'content'])
 
     portfolio = Portfolio()
@@ -85,14 +106,15 @@ def run_backtest(start_date, end_date, model_config=None):
     log.info(f"Starting backtest from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} ({len(simulation_dates)} trading days)")
 
     for current_date in simulation_dates:
-        log.info(f"--- Trading Day: {current_date.strftime('%Y-%m-%d')} ---")
+        date_str = current_date.strftime('%Y-%m-%d')
+        log.info(f"--- Trading Day: {date_str} ---")
 
         day_data = market_data[market_data['Date'] == current_date]
         current_prices = {row['ticker']: row['Close'] for _, row in day_data.iterrows()}
 
         if not current_prices:
-            log.warning(f"No market data for {current_date.strftime('%Y-%m-%d')}. Skipping.")
-            portfolio.update_history(current_prices)
+            log.warning(f"No market data for {date_str}. Skipping.")
+            portfolio.update_history(current_prices, date_str)
             continue
 
         daily_market_data = {ticker: {'price': price} for ticker, price in current_prices.items()}
@@ -137,11 +159,18 @@ def run_backtest(start_date, end_date, model_config=None):
                 ticker=ticker,
                 decision=decision_data.get('decision'),
                 price=current_prices[ticker],
-                confidence=decision_data.get('confidence', 0.5)
+                confidence=decision_data.get('confidence', 0.5),
+                reasoning=decision_data.get('reasoning', '')
             )
 
-        portfolio.update_history(current_prices)
-        log.info(f"End of day portfolio value: ₺{portfolio.get_total_value(current_prices):,.2f}")
+        portfolio.update_history(current_prices, date_str)
+        log.info(f"End of day portfolio value: {portfolio.get_total_value(current_prices):,.2f}")
 
     log.info("--- Backtest Finished ---")
+    if return_details:
+        return {
+            "history": portfolio.history,
+            "detailed_history": portfolio.detailed_history,
+            "trades": portfolio.trades
+        }
     return portfolio.history

@@ -6,49 +6,67 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Simulation Configuration ---
-# BIST30 constituents (yfinance uses .IS suffix for Borsa Istanbul)
-TICKERS = [
-    "AKBNK.IS", "ARCLK.IS", "ASELS.IS", "BIMAS.IS", "CCOLA.IS",
-    "DOHOL.IS", "EKGYO.IS", "EREGL.IS", "FROTO.IS", "GARAN.IS",
-    "HALKB.IS", "ISCTR.IS", "KCHOL.IS", "KRDMD.IS", "MGROS.IS",
-    "OTKAR.IS", "PETKM.IS", "PGSUS.IS", "SAHOL.IS", "SASA.IS",
-    "SISE.IS", "SOKM.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS",
-    "TKFEN.IS", "TOASO.IS", "TUPRS.IS", "VAKBN.IS", "YKBNK.IS"
-]
-
-# Company names used for news search queries (BIST tickers don't match news well)
-COMPANY_NAMES = {
-    "AKBNK.IS": "Akbank",
-    "ARCLK.IS": "Arcelik",
-    "ASELS.IS": "Aselsan",
-    "BIMAS.IS": "BIM Birlesik Magazalar",
-    "CCOLA.IS": "Coca-Cola Icecek",
-    "DOHOL.IS": "Dogan Holding",
-    "EKGYO.IS": "Emlak Konut",
-    "EREGL.IS": "Eregli Demir Celik",
-    "FROTO.IS": "Ford Otosan",
-    "GARAN.IS": "Garanti BBVA",
-    "HALKB.IS": "Halkbank",
-    "ISCTR.IS": "Is Bankasi",
-    "KCHOL.IS": "Koc Holding",
-    "KRDMD.IS": "Kardemir",
-    "MGROS.IS": "Migros",
-    "OTKAR.IS": "Otokar",
-    "PETKM.IS": "Petkim",
-    "PGSUS.IS": "Pegasus Airlines",
-    "SAHOL.IS": "Sabanci Holding",
-    "SASA.IS": "SASA Polyester",
-    "SISE.IS": "Sisecam",
-    "SOKM.IS": "Sok Marketler",
-    "TAVHL.IS": "TAV Airports",
-    "TCELL.IS": "Turkcell",
-    "THYAO.IS": "Turkish Airlines",
-    "TKFEN.IS": "Tekfen Holding",
-    "TOASO.IS": "Tofas",
-    "TUPRS.IS": "Tupras",
-    "VAKBN.IS": "Vakifbank",
-    "YKBNK.IS": "Yapi Kredi",
+EXCHANGES = {
+    "BIST30": {
+        "tickers": [
+            "AKBNK.IS", "ARCLK.IS", "ASELS.IS", "BIMAS.IS", "CCOLA.IS",
+            "DOHOL.IS", "EKGYO.IS", "EREGL.IS", "FROTO.IS", "GARAN.IS",
+            "HALKB.IS", "ISCTR.IS", "KCHOL.IS", "KRDMD.IS", "MGROS.IS",
+            "OTKAR.IS", "PETKM.IS", "PGSUS.IS", "SAHOL.IS", "SASA.IS",
+            "SISE.IS", "SOKM.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS",
+            "TKFEN.IS", "TOASO.IS", "TUPRS.IS", "VAKBN.IS", "YKBNK.IS"
+        ],
+        "currency": "TRY",
+        "currency_symbol": "₺",
+        "companies": {
+            "AKBNK.IS": "Akbank",
+            "ARCLK.IS": "Arcelik",
+            "ASELS.IS": "Aselsan",
+            "BIMAS.IS": "BIM Birlesik Magazalar",
+            "CCOLA.IS": "Coca-Cola Icecek",
+            "DOHOL.IS": "Dogan Holding",
+            "EKGYO.IS": "Emlak Konut",
+            "EREGL.IS": "Eregli Demir Celik",
+            "FROTO.IS": "Ford Otosan",
+            "GARAN.IS": "Garanti BBVA",
+            "HALKB.IS": "Halkbank",
+            "ISCTR.IS": "Is Bankasi",
+            "KCHOL.IS": "Koc Holding",
+            "KRDMD.IS": "Kardemir",
+            "MGROS.IS": "Migros",
+            "OTKAR.IS": "Otokar",
+            "PETKM.IS": "Petkim",
+            "PGSUS.IS": "Pegasus Airlines",
+            "SAHOL.IS": "Sabanci Holding",
+            "SASA.IS": "SASA Polyester",
+            "SISE.IS": "Sisecam",
+            "SOKM.IS": "Sok Marketler",
+            "TAVHL.IS": "TAV Airports",
+            "TCELL.IS": "Turkcell",
+            "THYAO.IS": "Turkish Airlines",
+            "TKFEN.IS": "Tekfen Holding",
+            "TOASO.IS": "Tofas",
+            "TUPRS.IS": "Tupras",
+            "VAKBN.IS": "Vakifbank",
+            "YKBNK.IS": "Yapi Kredi"
+        }
+    },
+    "NASDAQ": {
+        "tickers": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"],
+        "currency": "USD",
+        "currency_symbol": "$",
+        "companies": {
+            "AAPL": "Apple Inc.",
+            "MSFT": "Microsoft Corporation",
+            "NVDA": "NVIDIA Corporation",
+            "TSLA": "Tesla Inc.",
+            "AMZN": "Amazon.com Inc."
+        }
+    }
 }
+
+TICKERS = EXCHANGES["BIST30"]["tickers"]
+COMPANY_NAMES = EXCHANGES["BIST30"]["companies"]
 
 INITIAL_CASH = 1000000  # 1 milyon TRY
 SIMULATION_DAYS = 30
