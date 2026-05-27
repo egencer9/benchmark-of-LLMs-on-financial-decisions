@@ -1,0 +1,10 @@
+QUANT-LLM TRADER - HOW TO RUN
+
+1. Start the backend API server:
+   python src/api.py
+
+2. In a separate terminal, start the React frontend:
+   cd frontend
+   npm run dev
+
+Open http://localhost:5173 in your browser to view the dashboard!
