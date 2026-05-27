@@ -1,4 +1,4 @@
-QUANT-LLM TRADER - HOW TO RUN
+LLM BENCHMARK - HOW TO RUN
 
 1. Start the backend API server:
    python src/api.py

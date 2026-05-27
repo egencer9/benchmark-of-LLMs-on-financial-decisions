@@ -387,7 +387,7 @@ export default function App() {
               </div>
               <div>
                 <h1 className="font-extrabold text-sm tracking-wider uppercase bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                  LLM Quant Trader
+                  LLM BENCHMARK
                 </h1>
                 <span className="text-[10px] text-slate-500 block">NASDAQ / BIST30 BENCHMARK</span>
               </div>
