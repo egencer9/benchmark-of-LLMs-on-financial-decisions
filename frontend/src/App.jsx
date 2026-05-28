@@ -18,7 +18,9 @@ import {
   ChevronRight,
   TrendingDown,
   X,
-  Layers
+  Layers,
+  Sun,
+  Moon
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -38,8 +40,9 @@ import {
 
 export default function App() {
   // Navigation & Tab States
-  const [exchange, setExchange] = useState('BIST30'); // "BIST30" or "NASDAQ"
+  const [exchange, setExchange] = useState('NASDAQ'); // "BIST30" or "NASDAQ"
   const [subTab, setSubTab] = useState('dashboard'); // "dashboard", "insights", "ledger", "market", "runner"
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
   // Config and Data States
   const [configData, setConfigData] = useState(null);
@@ -162,6 +165,12 @@ export default function App() {
     fetchConfig();
   }, []);
 
+  // Update theme class on HTML element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   // Fetch exchange specific details when tab changes
   useEffect(() => {
     fetchMarketData();
@@ -276,14 +285,18 @@ export default function App() {
   };
 
   const loadRunDetails = async (filename) => {
-    setSelectedHistoryFile(filename);
+    if (!filename) return;
     try {
       const res = await fetch(`http://localhost:8000/api/results/${exchange}/${filename}`);
       if (!res.ok) throw new Error("Failed to load run details.");
       const data = await res.json();
       setSingleRunDetails(data);
+      setSelectedHistoryFile(filename);
     } catch (err) {
-      console.error(err);
+      console.error("Error loading run details:", err);
+      alert(`Failed to load run details: ${err.message}`);
+      setSingleRunDetails(null);
+      setSelectedHistoryFile('');
     }
   };
 
@@ -365,11 +378,18 @@ export default function App() {
 
   const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6'];
 
+  const isLight = theme === 'light';
+  const chartGridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)';
+  const chartAxisColor = isLight ? '#64748b' : '#475569';
+  const chartTooltipBg = isLight ? '#ffffff' : '#0f111a';
+  const chartTooltipBorder = isLight ? '#cbd5e1' : '#1e293b';
+  const chartTooltipColor = isLight ? '#0f172a' : '#f1f5f9';
+
   return (
     <div className="flex h-screen bg-background text-slate-100 font-sans select-none flex-col">
       {/* 1. Persistent Top DEV_MODE Banner */}
       {configData?.dev_mode && (
-        <div className="bg-amber-600/90 text-background px-4 py-1 text-center text-xs font-bold flex items-center justify-center gap-2 border-b border-amber-500/20 shrink-0">
+        <div className="bg-amber-600/90 text-white px-4 py-1 text-center text-xs font-bold flex items-center justify-center gap-2 border-b border-amber-500/20 shrink-0">
           <AlertTriangle className="h-4 w-4" />
           <span>⚠ DEV MODE ACTIVE — Dummy actions are being simulated (No LLM API costs)</span>
         </div>
@@ -406,7 +426,7 @@ export default function App() {
               </button>
 
               {showKeys && configData?.api_keys && (
-                <div className="space-y-1.5 text-[10px] bg-black/40 p-2 rounded border border-white/5 font-mono">
+                <div className="space-y-1.5 text-[10px] bg-slate-900/60 p-2 rounded border border-border font-mono">
                   {Object.entries(configData.api_keys).map(([key, val]) => (
                     <div key={key} className="flex flex-col">
                       <span className="text-slate-500 text-[9px]">{key}</span>
@@ -422,24 +442,24 @@ export default function App() {
               <label className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider mb-2">Active Exchange</label>
               <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-lg border border-border">
                 <button
-                  onClick={() => setExchange('BIST30')}
-                  className={`py-1.5 rounded-md text-xs font-bold transition-all ${
-                    exchange === 'BIST30'
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                  }`}
-                >
-                  BIST30 (TRY)
-                </button>
-                <button
                   onClick={() => setExchange('NASDAQ')}
                   className={`py-1.5 rounded-md text-xs font-bold transition-all ${
                     exchange === 'NASDAQ'
                       ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                 >
                   NASDAQ (USD)
+                </button>
+                <button
+                  onClick={() => setExchange('BIST30')}
+                  className={`py-1.5 rounded-md text-xs font-bold transition-all ${
+                    exchange === 'BIST30'
+                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                >
+                  BIST30 (TRY)
                 </button>
               </div>
             </div>
@@ -451,7 +471,7 @@ export default function App() {
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   subTab === 'dashboard'
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                 }`}
               >
                 <TrendingUp className="h-4 w-4" />
@@ -463,7 +483,7 @@ export default function App() {
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   subTab === 'insights'
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                 }`}
               >
                 <Layers className="h-4 w-4" />
@@ -475,7 +495,7 @@ export default function App() {
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   subTab === 'ledger'
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                 }`}
               >
                 <BookOpen className="h-4 w-4" />
@@ -487,7 +507,7 @@ export default function App() {
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   subTab === 'market'
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                 }`}
               >
                 <DollarSign className="h-4 w-4" />
@@ -499,7 +519,7 @@ export default function App() {
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   subTab === 'runner'
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                 }`}
               >
                 <Play className="h-4 w-4" />
@@ -573,11 +593,28 @@ export default function App() {
               </span>
             </div>
 
-            <div className="flex items-center gap-4 text-xs">
-              <span className="text-slate-500 font-mono">Currency:</span>
-              <span className="text-slate-300 font-extrabold bg-slate-900 border border-border px-2.5 py-1 rounded">
-                {currencyCode} ({currencySymbol})
-              </span>
+            <div className="flex items-center gap-6 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-mono">Theme Selection:</span>
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-2 rounded-lg bg-slate-900 border border-border hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition-all cursor-pointer flex items-center justify-center"
+                  title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 border-l border-border pl-6">
+                <span className="text-slate-500 font-mono">Currency:</span>
+                <span className="text-slate-300 font-extrabold bg-slate-900 border border-border px-2.5 py-1 rounded">
+                  {currencyCode} ({currencySymbol})
+                </span>
+              </div>
             </div>
           </header>
 
@@ -621,7 +658,7 @@ export default function App() {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Comparative Portfolio Performance Chart</h3>
-                      <p className="text-[11px] text-slate-500 mt-1">Select runs in the right drawer to overlay and evaluate cumulative return curves.</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Select runs in the History Ledger table below to overlay and evaluate cumulative return curves.</p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -634,18 +671,22 @@ export default function App() {
                     <div className="h-80 w-full font-mono text-[10px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={compareData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                           <XAxis
                             dataKey="date"
-                            stroke="#475569"
+                            stroke={chartAxisColor}
                             tickFormatter={(v) => v || ''}
                           />
                           <YAxis
-                            stroke="#475569"
+                            stroke={chartAxisColor}
                             tickFormatter={(v) => formatCurrency(v)}
                           />
                           <Tooltip
-                            contentStyle={{ backgroundColor: '#0f111a', border: '1px solid #1e293b' }}
+                            contentStyle={{
+                              backgroundColor: chartTooltipBg,
+                              border: `1px solid ${chartTooltipBorder}`,
+                              color: chartTooltipColor
+                            }}
                             formatter={(value) => [formatCurrency(value), "Portfolio Value"]}
                           />
                           <Legend />
@@ -674,7 +715,7 @@ export default function App() {
                       </div>
                       <h4 className="text-sm font-bold text-slate-300">No Simulation Runs Overlayed</h4>
                       <p className="text-xs text-slate-500 max-w-sm mt-2">
-                        Select one or more historical benchmark runs from the checklist on the right to visualize comparative portfolio performance.
+                        Select one or more historical benchmark runs from the checklist in the Saved Runs History Ledger table below to visualize comparative portfolio performance.
                       </p>
                       {historyList.length === 0 && (
                         <button
@@ -712,7 +753,7 @@ export default function App() {
                           </thead>
                           <tbody className="divide-y divide-border/60">
                             {historyList.map(run => (
-                              <tr key={run.filename} className="hover:bg-white/5 transition-all">
+                              <tr key={run.filename} className="hover:bg-slate-800/40 transition-all">
                                 <td className="py-3 px-3">
                                   <input
                                     type="checkbox"
@@ -843,11 +884,15 @@ export default function App() {
                                   <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                                 </linearGradient>
                               </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                              <XAxis dataKey="date" stroke="#475569" />
-                              <YAxis stroke="#475569" tickFormatter={(v) => formatCurrency(v)} />
+                              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                              <XAxis dataKey="date" stroke={chartAxisColor} />
+                              <YAxis stroke={chartAxisColor} tickFormatter={(v) => formatCurrency(v)} />
                               <Tooltip
-                                contentStyle={{ backgroundColor: '#0f111a', border: '1px solid #1e293b' }}
+                                contentStyle={{
+                                  backgroundColor: chartTooltipBg,
+                                  border: `1px solid ${chartTooltipBorder}`,
+                                  color: chartTooltipColor
+                                }}
                                 formatter={(value) => [formatCurrency(value)]}
                               />
                               <Legend />
@@ -898,7 +943,14 @@ export default function App() {
                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                               </Pie>
-                              <Tooltip formatter={(value) => formatCurrency(value)} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: chartTooltipBg,
+                                  border: `1px solid ${chartTooltipBorder}`,
+                                  color: chartTooltipColor
+                                }}
+                                formatter={(value) => formatCurrency(value)}
+                              />
                               <Legend />
                             </PieChart>
                           </ResponsiveContainer>
@@ -1025,7 +1077,7 @@ export default function App() {
                               return matchTicker && matchAction;
                             })
                             .map((trade, idx) => (
-                              <tr key={idx} className="hover:bg-white/5 transition-all">
+                              <tr key={idx} className="hover:bg-slate-800/40 transition-all">
                                 <td className="py-3 px-4 font-bold text-slate-300 font-mono">{trade.ticker}</td>
                                 <td className="py-3 px-4">
                                   <span
@@ -1292,7 +1344,7 @@ export default function App() {
                     )}
 
                     {/* Monospace Log console box */}
-                    <div className="flex-1 bg-black/60 border border-border rounded-lg p-4 font-mono text-xs overflow-y-auto text-slate-400 flex flex-col space-y-1.5 relative">
+                    <div className="flex-1 bg-slate-900 border border-border rounded-lg p-4 font-mono text-xs overflow-y-auto text-slate-400 flex flex-col space-y-1.5 relative">
                       {runnerLogs.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-600 text-xs px-8">
                           <Cpu className="h-8 w-8 text-slate-700 mb-2" />

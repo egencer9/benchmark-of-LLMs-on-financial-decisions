@@ -15,14 +15,14 @@ def load_market_data(exchange="BIST30"):
     """
     path = os.path.join(DATA_DIR, f"market_data_{exchange}.csv")
     if not os.path.exists(path):
-        path = MARKET_DATA_PATH
-        log.info(f"Exchange specific market data not found, falling back to default: {path}")
+        if exchange == "BIST30" and os.path.exists(MARKET_DATA_PATH):
+            path = MARKET_DATA_PATH
+            log.info(f"Exchange specific BIST30 market data not found, falling back to default: {path}")
+        else:
+            log.error(f"Market data for exchange '{exchange}' not found at {path}. Run 'scripts/collect_data.py' first.")
+            raise FileNotFoundError(f"Market data for exchange '{exchange}' not found at {path}.")
     else:
         log.info(f"Loading market data for exchange '{exchange}' from: {path}")
-
-    if not os.path.exists(path):
-        log.error(f"Market data not found at {path}. Run 'scripts/collect_data.py' first.")
-        raise FileNotFoundError(f"Market data not found at {path}.")
     
     df = pd.read_csv(path)
     
@@ -44,14 +44,14 @@ def load_news_data(exchange="BIST30"):
     """Loads news data from the CSV file using an absolute path."""
     path = os.path.join(DATA_DIR, f"news_data_{exchange}.csv")
     if not os.path.exists(path):
-        path = NEWS_DATA_PATH
-        log.info(f"Exchange specific news data not found, falling back to default: {path}")
+        if exchange == "BIST30" and os.path.exists(NEWS_DATA_PATH):
+            path = NEWS_DATA_PATH
+            log.info(f"Exchange specific BIST30 news data not found, falling back to default: {path}")
+        else:
+            log.error(f"News data for exchange '{exchange}' not found at {path}. Run 'scripts/collect_data.py' first.")
+            raise FileNotFoundError(f"News data for exchange '{exchange}' not found at {path}.")
     else:
         log.info(f"Loading news data for exchange '{exchange}' from: {path}")
-
-    if not os.path.exists(path):
-        log.error(f"News data not found at {path}. Run 'scripts/collect_data.py' first.")
-        raise FileNotFoundError(f"News data not found at {path}.")
     
     df = pd.read_csv(path, parse_dates=['publishedAt'])
     # Normalize timezone to naive

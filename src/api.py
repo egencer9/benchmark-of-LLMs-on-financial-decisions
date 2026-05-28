@@ -250,10 +250,10 @@ def get_api_config():
             } for k, v in config.EXCHANGES.items()
         },
         "api_keys": {
-            "GEMINI_API_KEY": mask_api_key(os.getenv("GEMINI_API_KEY")),
-            "NEWS_API_KEY": mask_api_key(os.getenv("NEWS_API_KEY")),
-            "OPEN_ROUTER_KEY": mask_api_key(os.getenv("OPEN_ROUTER_KEY")),
-            "FINNHUB_API_KEY": mask_api_key(os.getenv("FINNHUB_API_KEY")),
+            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY") or "Not Set",
+            "NEWS_API_KEY": os.getenv("NEWS_API_KEY") or "Not Set",
+            "OPEN_ROUTER_KEY": os.getenv("OPEN_ROUTER_KEY") or "Not Set",
+            "FINNHUB_API_KEY": os.getenv("FINNHUB_API_KEY") or "Not Set",
         },
         "dev_mode": config.DEV_MODE
     }

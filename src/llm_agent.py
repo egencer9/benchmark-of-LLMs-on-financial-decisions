@@ -117,46 +117,56 @@ def _get_openrouter_decision(prompt, model_config):
     return _api_call_with_retry(api_call, alias)
 
 def _get_dummy_response(tickers):
-    log.info(f"Generating dummy HOLD response for {len(tickers)} tickers")
-    dummy_decisions = {
-        ticker: {"decision": "HOLD", "reasoning": "Dummy response due to API failure.", "confidence": 0.5}
-        for ticker in tickers
-    }
+    import random
+    log.info(f"Generating dummy trading response for {len(tickers)} tickers")
+    dummy_decisions = {}
+    for ticker in tickers:
+        # 40% HOLD, 35% BUY, 25% SELL
+        decision = random.choices(["BUY", "SELL", "HOLD"], weights=[35, 25, 40], k=1)[0]
+        confidence = round(random.uniform(0.6, 0.95), 2) if decision != "HOLD" else 0.5
+        reasoning = f"Simulated {decision} signal for {ticker} based on mock technical indicators."
+        dummy_decisions[ticker] = {
+            "decision": decision,
+            "reasoning": reasoning,
+            "confidence": confidence
+        }
     return json.dumps(dummy_decisions, indent=2)
 
-def construct_master_prompt(portfolio, market_data, news_summaries):
-    log.debug("Constructing BIST30 master prompt...")
+def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BIST30"):
+    log.debug(f"Constructing {exchange} master prompt...")
+
+    exch_config = config.EXCHANGES.get(exchange, config.EXCHANGES["BIST30"])
+    currency = exch_config["currency"]
+    currency_symbol = exch_config["currency_symbol"]
 
     stocks_str = ""
     for ticker, data in market_data.items():
-        company = config.COMPANY_NAMES.get(ticker, ticker)
+        company = exch_config.get("companies", {}).get(ticker, ticker)
         news = news_summaries.get(ticker, "No recent news.")
-        stocks_str += f"- **{ticker}** ({company}): ₺{data['price']:.2f} TRY | News: {news}\n"
+        stocks_str += f"- **{ticker}** ({company}): {currency_symbol}{data['price']:.2f} {currency} | News: {news}\n"
 
     tickers_list = list(market_data.keys())
 
-    prompt = f"""You are a financial trading agent operating on Borsa Istanbul (BIST30).
-You are trading SPOT stocks. All prices and cash are in Turkish Lira (TRY).
+    prompt = f"""You are a financial trading agent operating on {exchange}.
+You are trading SPOT stocks. All prices and cash are in {currency} ({currency_symbol}).
 
 **Current Portfolio:**
-- Cash: ₺{portfolio['cash']:,.2f} TRY
+- Cash: {currency_symbol}{portfolio['cash']:,.2f} {currency}
 - Holdings: {portfolio['holdings']}
 
-**BIST30 Market Data:**
+**{exchange} Market Data:**
 {stocks_str}
 
 **INSTRUCTIONS:**
 1. Analyze each stock's price and news to determine a trading signal.
 2. For each stock, output BUY, SELL, or HOLD with a confidence score (0.0-1.0) and brief reasoning.
 3. Be decisive — do not default to HOLD unless there is genuinely no signal.
-4. Consider Turkey's macroeconomic conditions, currency risk, and sector dynamics.
-5. Output a valid JSON object where each key is a ticker symbol and value contains "decision", "reasoning", and "confidence".
+4. Output a valid JSON object where each key is a ticker symbol and value contains "decision", "reasoning", and "confidence".
 
 **EXAMPLE RESPONSE FORMAT:**
 {{
-  "THYAO.IS": {{"decision": "BUY", "reasoning": "Strong passenger traffic data and TRY weakness boost exports.", "confidence": 0.80}},
-  "GARAN.IS": {{"decision": "HOLD", "reasoning": "Neutral — awaiting interest rate decision.", "confidence": 0.50}},
-  "TUPRS.IS": {{"decision": "SELL", "reasoning": "Falling oil margins and refinery maintenance planned.", "confidence": 0.70}}
+  "{tickers_list[0] if tickers_list else 'TICKER'}": {{"decision": "BUY", "reasoning": "Strong quarterly performance and positive sentiment.", "confidence": 0.85}},
+  "{tickers_list[1] if len(tickers_list) > 1 else 'TICKER2'}": {{"decision": "HOLD", "reasoning": "Awaiting earnings report.", "confidence": 0.50}}
 }}
 
 **Available tickers (respond for each one):** {tickers_list}

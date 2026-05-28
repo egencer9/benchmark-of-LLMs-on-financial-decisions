@@ -21,12 +21,14 @@ def calculate_metrics(portfolio_history, risk_free_rate=0.02):
     rolling_max = pd.Series(portfolio_history).cummax()
     daily_drawdown = pd.Series(portfolio_history) / rolling_max - 1.0
     max_drawdown = daily_drawdown.min()
-    downside_returns = returns[returns < 0]
+    downside_returns = returns.copy()
+    downside_returns[downside_returns > 0] = 0
     downside_std = downside_returns.std()
     annualized_return = returns.mean() * 252
+    annualized_downside_std = downside_std * np.sqrt(252)
 
-    if downside_std > 0:
-        sortino_ratio = (annualized_return - (risk_free_rate / 252)) / downside_std * np.sqrt(252)
+    if annualized_downside_std > 0:
+        sortino_ratio = (annualized_return - risk_free_rate) / annualized_downside_std
     else:
         sortino_ratio = np.inf
         log.warning("No downside deviation; Sortino Ratio is infinite.")

@@ -137,7 +137,7 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
             daily_news_summaries[ticker] = descriptions if descriptions else "No recent news found."
 
         portfolio_state = {'cash': portfolio.cash, 'holdings': portfolio.holdings}
-        master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries)
+        master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange)
 
         available_tickers = list(current_prices.keys())
         decision_str = get_llm_decision(master_prompt, available_tickers, model_config=model_config)
