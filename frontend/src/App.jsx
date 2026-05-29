@@ -39,6 +39,10 @@ import {
 } from 'recharts';
 
 export default function App() {
+  const hostName = window.location.hostname || 'localhost';
+  const API_BASE = `http://${hostName}:8000`;
+  const WS_BASE = `ws://${hostName}:8000`;
+
   // Navigation & Tab States
   const [exchange, setExchange] = useState('NASDAQ'); // "BIST30" or "NASDAQ"
   const [subTab, setSubTab] = useState('dashboard'); // "dashboard", "insights", "ledger", "market", "runner"
@@ -99,7 +103,7 @@ export default function App() {
     let reconnectTimer;
     const connectWS = () => {
       console.log("Connecting to WebSocket...");
-      const ws = new WebSocket("ws://localhost:8000/api/backtest/stream");
+      const ws = new WebSocket(`${WS_BASE}/api/backtest/stream`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -194,7 +198,7 @@ export default function App() {
   const fetchConfig = async () => {
     setLoadingConfig(true);
     try {
-      const res = await fetch("http://localhost:8000/api/config");
+      const res = await fetch(`${API_BASE}/api/config`);
       if (!res.ok) throw new Error("Failed to load config.");
       const data = await res.json();
       setConfigData(data);
@@ -209,7 +213,7 @@ export default function App() {
   const fetchMarketData = async () => {
     setLoadingMarket(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/market-data?exchange=${exchange}`);
+      const res = await fetch(`${API_BASE}/api/market-data?exchange=${exchange}`);
       if (!res.ok) throw new Error(`Failed to load ${exchange} market data.`);
       const data = await res.json();
       setMarketData(data);
@@ -223,7 +227,7 @@ export default function App() {
   const fetchNews = async () => {
     setLoadingNews(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/news?exchange=${exchange}&limit=25`);
+      const res = await fetch(`${API_BASE}/api/news?exchange=${exchange}&limit=25`);
       if (!res.ok) throw new Error("Failed to fetch news.");
       const data = await res.json();
       setNewsData(data);
@@ -237,7 +241,7 @@ export default function App() {
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/backtest/history?exchange=${exchange}&page=${historyPage}&limit=20`);
+      const res = await fetch(`${API_BASE}/api/backtest/history?exchange=${exchange}&page=${historyPage}&limit=20`);
       if (!res.ok) throw new Error("Failed to fetch history list.");
       const data = await res.json();
       setHistoryList(data.runs || []);
@@ -253,7 +257,7 @@ export default function App() {
     setLoadingCompare(true);
     try {
       const runsParam = selectedRunsForCompare.join(',');
-      const res = await fetch(`http://localhost:8000/api/results/compare?exchange=${exchange}&runs=${runsParam}`);
+      const res = await fetch(`${API_BASE}/api/results/compare?exchange=${exchange}&runs=${runsParam}`);
       if (!res.ok) throw new Error("Failed to compare runs.");
       const runs = await res.json();
 
@@ -285,7 +289,7 @@ export default function App() {
   const loadRunDetails = async (filename) => {
     if (!filename) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/results/${exchange}/${filename}`);
+      const res = await fetch(`${API_BASE}/api/results/${exchange}/${filename}`);
       if (!res.ok) throw new Error("Failed to load run details.");
       const data = await res.json();
       setSingleRunDetails(data);
@@ -301,7 +305,7 @@ export default function App() {
   const startBacktest = async () => {
     if (runnerStatus === 'running') return;
     try {
-      const res = await fetch("http://localhost:8000/api/backtest/run", {
+      const res = await fetch(`${API_BASE}/api/backtest/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -15,3 +15,18 @@ openrouter_models:
 
   - alias: "Google Gemma 3 27B"
     model_name: "google/gemma-3-27b-it:free"
+
+  - alias: "Poolside Laguna M.1"
+    model_name: "poolside/laguna-m.1:free"
+
+  - alias: "Minimax M2.5"
+    model_name: "minimax/minimax-m2.5:free"
+
+  - alias: "Moonshot Kimi K2.6"
+    model_name: "moonshotai/kimi-k2.6:free"
+
+  - alias: "Meta Llama 3.3 70B Instruct"
+    model_name: "meta-llama/llama-3.3-70b-instruct:free"
+
+  - alias: "Liquid LFM 2.5 1.2B Thinking"
+    model_name: "liquid/lfm-2.5-1.2b-thinking:free"

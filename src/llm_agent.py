@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import google.generativeai as genai
 import requests
 import json
@@ -25,32 +26,110 @@ elif config.LLM_PROVIDER == 'openrouter' and config.OPEN_ROUTER_KEY:
     else:
         log.warning(f"OpenRouter client initialized, but config.yaml has issues: {config.YAML_CONFIG_ERROR}")
 
+# --- SOLID Provider Classes ---
+
+class LLMProvider(ABC):
+    @abstractmethod
+    def get_decision(self, prompt: str, model_config: dict = None) -> str:
+        """Fetches trading decision from provider's API."""
+        pass
+
+class GeminiProvider(LLMProvider):
+    def __init__(self, model):
+        self.model = model
+
+    def get_decision(self, prompt: str, model_config: dict = None) -> str:
+        if not self.model:
+            raise RuntimeError("Gemini model client is not initialized.")
+        def api_call():
+            return self.model.generate_content(prompt).text
+        return _api_call_with_retry(api_call, 'gemini')
+
+class OpenAIProvider(LLMProvider):
+    def __init__(self, client):
+        self.client = client
+
+    def get_decision(self, prompt: str, model_config: dict = None) -> str:
+        if not self.client:
+            raise RuntimeError("OpenAI client is not initialized.")
+        def api_call():
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a JSON-only API endpoint."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+        return _api_call_with_retry(api_call, 'openai')
+
+class OpenRouterProvider(LLMProvider):
+    def __init__(self, session):
+        self.session = session
+
+    def get_decision(self, prompt: str, model_config: dict = None) -> str:
+        if not self.session:
+            raise RuntimeError("OpenRouter session is not initialized.")
+        
+        active_model = model_config or (config.OPENROUTER_MODELS[0] if config.OPENROUTER_MODELS else None)
+        if not active_model:
+            msg = "OpenRouter is selected, but no models are configured in config.yaml."
+            log.error(msg)
+            raise RuntimeError(msg)
+        
+        alias = active_model['alias']
+        log.info(f"Calling model: {alias}")
+
+        def api_call():
+            payload = {
+                "model": active_model['model_name'],
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            response = self.session.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {config.OPEN_ROUTER_KEY}",
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(payload)
+            )
+            response.raise_for_status()
+            return response.json()['choices'][0]['message']['content']
+        return _api_call_with_retry(api_call, alias)
+
+class LLMProviderFactory:
+    _providers = {}
+
+    @classmethod
+    def get_provider(cls, provider_name: str) -> LLMProvider:
+        provider_name = provider_name.lower()
+        if provider_name not in cls._providers:
+            if provider_name == 'gemini':
+                cls._providers[provider_name] = GeminiProvider(clients.get('gemini'))
+            elif provider_name == 'openai':
+                cls._providers[provider_name] = OpenAIProvider(clients.get('openai'))
+            elif provider_name == 'openrouter':
+                router_client = clients.get('openrouter')
+                session = router_client.get('session') if isinstance(router_client, dict) else None
+                cls._providers[provider_name] = OpenRouterProvider(session)
+            else:
+                raise ValueError(f"Unsupported LLM provider: {provider_name}")
+        return cls._providers[provider_name]
+
 # --- Main Function ---
 def get_llm_decision(prompt, available_tickers, model_config=None):
     """
     Gets a trading decision from the configured LLM provider.
     """
-    provider = config.LLM_PROVIDER
-    if provider not in clients:
-        msg = f"LLM Provider '{provider}' is not initialized. Please verify your API key or connection."
+    provider_name = config.LLM_PROVIDER
+    if provider_name not in clients:
+        msg = f"LLM Provider '{provider_name}' is not initialized. Please verify your API key or connection."
         log.error(msg)
         raise RuntimeError(msg)
 
     try:
-        result = None
-        if provider == 'gemini':
-            result = _get_gemini_decision(prompt)
-        elif provider == 'openai':
-            result = _get_openai_decision(prompt)
-        elif provider == 'openrouter':
-            active_model = model_config or (config.OPENROUTER_MODELS[0] if config.OPENROUTER_MODELS else None)
-            if active_model:
-                log.info(f"Calling model: {active_model['alias']}")
-                result = _get_openrouter_decision(prompt, active_model)
-            else:
-                msg = "OpenRouter is selected, but no models are configured in config.yaml."
-                log.error(msg)
-                raise RuntimeError(msg)
+        provider = LLMProviderFactory.get_provider(provider_name)
+        result = provider.get_decision(prompt, model_config)
 
         log.info("Sleeping for 10 seconds to respect API rate limits...")
         time.sleep(10)
@@ -58,61 +137,33 @@ def get_llm_decision(prompt, available_tickers, model_config=None):
         return result
 
     except Exception as e:
-        log.error(f"An unexpected error occurred during API call for {provider}: {e}", exc_info=True)
+        log.error(f"An unexpected error occurred during API call for {provider_name}: {e}", exc_info=True)
         raise RuntimeError(
-            f"Failed to communicate with LLM provider '{provider}': {e}. "
+            f"Failed to communicate with LLM provider '{provider_name}': {e}. "
             f"Please verify your API key, check your internet connection/VPN, and retry the simulation."
         )
 
 # --- Provider-Specific Functions with Retry Logic ---
 def _api_call_with_retry(api_function, provider_name):
-    max_retries = 3
+    import random
+    max_retries = 6
     for attempt in range(max_retries):
         try:
             return api_function()
         except Exception as e:
-            if "429" in str(e):
-                wait_time = 10 + (attempt * 10)
-                log.warning(f"Rate limit exceeded for {provider_name}. Retrying in {wait_time} seconds...")
+            err_msg = str(e).lower()
+            if "429" in err_msg or "rate limit" in err_msg or "too many requests" in err_msg:
+                # Exponential backoff: 15s, 30s, 60s, 120s, 240s + jitter
+                wait_time = (2 ** attempt) * 15 + random.uniform(2, 6)
+                log.warning(
+                    f"Rate limit exceeded for {provider_name} (Attempt {attempt + 1}/{max_retries}). "
+                    f"Retrying in {wait_time:.1f} seconds..."
+                )
                 time.sleep(wait_time)
             else:
                 log.error(f"Error calling {provider_name} API: {e}", exc_info=True)
                 raise e
     raise Exception(f"API call to {provider_name} failed after {max_retries} retries.")
-
-def _get_gemini_decision(prompt):
-    def api_call():
-        return clients['gemini'].generate_content(prompt).text
-    return _api_call_with_retry(api_call, 'gemini')
-
-def _get_openai_decision(prompt):
-    def api_call():
-        response = clients['openai'].chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "system", "content": "You are a JSON-only API endpoint."}, {"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content
-    return _api_call_with_retry(api_call, 'openai')
-
-def _get_openrouter_decision(prompt, model_config):
-    alias = model_config['alias']
-    def api_call():
-        payload = {
-            "model": model_config['model_name'],
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        
-        response = clients['openrouter']['session'].post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {config.OPEN_ROUTER_KEY}",
-                "Content-Type": "application/json"
-            },
-            data=json.dumps(payload)
-        )
-        response.raise_for_status()
-        return response.json()['choices'][0]['message']['content']
-    return _api_call_with_retry(api_call, alias)
 
 # --- Sanity and Parsing Functions ---
 def parse_llm_response(response_str):
