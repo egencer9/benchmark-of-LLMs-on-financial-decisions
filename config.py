@@ -14,7 +14,8 @@ EXCHANGES = {
             "HALKB.IS", "ISCTR.IS", "KCHOL.IS", "KRDMD.IS", "MGROS.IS",
             "OTKAR.IS", "PETKM.IS", "PGSUS.IS", "SAHOL.IS", "SASA.IS",
             "SISE.IS", "SOKM.IS", "TAVHL.IS", "TCELL.IS", "THYAO.IS",
-            "TKFEN.IS", "TOASO.IS", "TUPRS.IS", "VAKBN.IS", "YKBNK.IS"
+            "TKFEN.IS", "TOASO.IS", "TUPRS.IS", "VAKBN.IS", "YKBNK.IS",
+            "XU030.IS"
         ],
         "currency": "TRY",
         "currency_symbol": "₺",
@@ -48,11 +49,12 @@ EXCHANGES = {
             "TOASO.IS": "Tofas",
             "TUPRS.IS": "Tupras",
             "VAKBN.IS": "Vakifbank",
-            "YKBNK.IS": "Yapi Kredi"
+            "YKBNK.IS": "Yapi Kredi",
+            "XU030.IS": "BIST 30 Index macroeconomic indicators and news"
         }
     },
     "NASDAQ": {
-        "tickers": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"],
+        "tickers": ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "^NDX"],
         "currency": "USD",
         "currency_symbol": "$",
         "companies": {
@@ -60,7 +62,8 @@ EXCHANGES = {
             "MSFT": "Microsoft Corporation",
             "NVDA": "NVIDIA Corporation",
             "TSLA": "Tesla Inc.",
-            "AMZN": "Amazon.com Inc."
+            "AMZN": "Amazon.com Inc.",
+            "^NDX": "US macroeconomic indicators and news"
         }
     }
 }
@@ -68,11 +71,19 @@ EXCHANGES = {
 TICKERS = EXCHANGES["BIST30"]["tickers"]
 COMPANY_NAMES = EXCHANGES["BIST30"]["companies"]
 
-INITIAL_CASH = 1000000  # 1 milyon TRY
+INITIAL_CASH = 1000000  # 1 milyon
 SIMULATION_DAYS = 30
 
 # --- Trading Configuration ---
-TRADING_MODE = 'spot'  # BIST30 icin spot trading
+TRADING_MODE = 'futures'  # futures index trading
+MARGIN_PER_CONTRACT_NASDAQ = 2000
+MARGIN_PCT_BIST30 = 0.10
+MULTIPLIER_NASDAQ = 2
+MULTIPLIER_BIST30 = 0.1
+MAX_RISK_PCT = 0.20
+MIN_CONTRACTS = 1
+PROMPT_VERSION = "v1"
+ACTIVE_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free"
 
 # --- Dynamic Date Configuration ---
 USE_DYNAMIC_DATES = True
@@ -90,9 +101,6 @@ OPEN_ROUTER_KEY = os.getenv("OPEN_ROUTER_KEY")
 
 # --- LLM Provider Configuration ---
 LLM_PROVIDER = "openrouter"
-
-# --- Development Configuration ---
-DEV_MODE = False
 
 # --- YAML Model Configuration ---
 OPENROUTER_MODELS = []

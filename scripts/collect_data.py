@@ -148,6 +148,7 @@ TICKER_KEYWORDS = {
     "TUPRS.IS": ["tüpraş", "tupras", "tuprs"],
     "VAKBN.IS": ["vakıfbank", "vakifbank", "vakbn"],
     "YKBNK.IS": ["yapı kredi", "yapi kredi", "ykbnk"],
+    "XU030.IS": ["enflasyon", "faiz", "tcmb", "merkez bankası", "büyüme", "ekonomi", "cari açık", "tüketici fiyatı", "istihdam", "sanayi üretimi"],
 }
 
 def _article_matches_ticker(text: str, ticker: str) -> bool:

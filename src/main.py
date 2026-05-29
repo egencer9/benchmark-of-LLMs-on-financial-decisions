@@ -10,17 +10,17 @@ if PROJECT_ROOT not in sys.path:
 
 import pandas as pd
 from src.backtester import run_backtest
-from src.analysis import calculate_metrics, plot_performance, create_buy_and_hold_baseline
+from src.analysis import plot_performance, create_buy_and_hold_baseline
 from src.data_loader import load_market_data
 from src.logger import log
 import config
 
+from src.metrics import total_return, max_drawdown, sharpe_ratio, win_rate, calmar_ratio, alpha_vs_benchmark
+
 RESULTS_DIR = os.path.join(PROJECT_ROOT, "data", "results")
 
-
 def _safe_filename(alias):
-    return alias.replace(" ", "_").replace("/", "-")
-
+    return alias.replace(" ", "_").replace("/", "-").replace("^", "")
 
 def _load_market_data_with_dates(exchange="BIST30"):
     market_data = load_market_data(exchange=exchange)
@@ -30,23 +30,40 @@ def _load_market_data_with_dates(exchange="BIST30"):
     end_date = available_dates[-1].strftime('%Y-%m-%d')
     return market_data, start_date, end_date
 
-
-def run_single_model(model_index, exchange="BIST30", dev_mode=None, start_date=None, end_date=None, initial_cash=None):
-    if model_index >= len(config.OPENROUTER_MODELS):
-        log.error(f"Model index {model_index} out of range. {len(config.OPENROUTER_MODELS)} models defined.")
-        return None
-
+def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=None, initial_cash=None, prompt_version=None):
     # Apply configuration overrides
-    if dev_mode is not None:
-        config.DEV_MODE = dev_mode
-        log.info(f"CLI Override: DEV_MODE set to {dev_mode}")
     if initial_cash is not None:
         config.INITIAL_CASH = initial_cash
-        log.info(f"CLI Override: INITIAL_CASH set to ₺{initial_cash:,.2f}")
+        log.info(f"CLI Override: INITIAL_CASH set to {initial_cash:,.2f}")
 
-    model_config = config.OPENROUTER_MODELS[model_index]
-    alias = model_config['alias']
-    log.info(f"=== Running backtest on {exchange} for model: {alias} ===")
+    # Determine model config
+    model_config = None
+    alias = ""
+    
+    # Check if model_input is a string representing an integer (index)
+    is_index = False
+    try:
+        model_idx = int(model_input)
+        is_index = True
+    except (ValueError, TypeError):
+        pass
+
+    if is_index:
+        if model_idx >= len(config.OPENROUTER_MODELS):
+            log.error(f"Model index {model_idx} out of range. {len(config.OPENROUTER_MODELS)} models defined.")
+            return None
+        model_config = config.OPENROUTER_MODELS[model_idx]
+        alias = model_config['alias']
+    else:
+        # Treat as string model_name
+        alias = model_input
+        model_config = {
+            "alias": alias,
+            "model_name": alias
+        }
+
+    active_prompt_version = prompt_version or config.PROMPT_VERSION
+    log.info(f"=== Running backtest on {exchange} for model: {alias} (Prompt: {active_prompt_version}) ===")
 
     try:
         market_data, default_start_date, default_end_date = _load_market_data_with_dates(exchange=exchange)
@@ -54,8 +71,12 @@ def run_single_model(model_index, exchange="BIST30", dev_mode=None, start_date=N
         run_end = end_date or default_end_date
     except Exception as e:
         log.error(f"Failed to load market data for exchange {exchange}: {e}")
-        return None
+        raise RuntimeError(
+            f"Failed to load market data for exchange {exchange}: {e}. "
+            f"Please verify your internet connection/VPN and run 'python scripts/collect_data.py' to download data."
+        )
 
+    # Run the backtest simulation
     res = run_backtest(
         start_date=run_start,
         end_date=run_end,
@@ -65,33 +86,90 @@ def run_single_model(model_index, exchange="BIST30", dev_mode=None, start_date=N
     )
 
     if not res or not res.get("history"):
-        log.warning(f"No results for {alias}.")
-        return None
+        log.error(f"No results for {alias}.")
+        raise RuntimeError(
+            f"Backtest failed to execute or return history for model '{alias}'. "
+            f"Check if LLM API rate limits were hit, check your VPN/connection, and retry."
+        )
 
     history = res["history"]
     detailed_history = res["detailed_history"]
     trades = res["trades"]
 
-    metrics = calculate_metrics(history)
+    # Calculate index buy-and-hold baseline
+    index_ticker = "^NDX" if exchange == "NASDAQ" else "XU030.IS"
+    simulation_dates = market_data[
+        (market_data['Date'] >= pd.Timestamp(run_start)) &
+        (market_data['Date'] <= pd.Timestamp(run_end))
+    ]['Date'].unique()
+    simulation_dates = sorted(simulation_dates)
+    
+    baseline_history = create_buy_and_hold_baseline(
+        config.INITIAL_CASH, [index_ticker], market_data, simulation_dates
+    )
+
+    # Calculate financial metrics
+    model_returns = pd.Series(history).pct_change().fillna(0)
+    benchmark_returns = pd.Series(baseline_history).pct_change().fillna(0) if baseline_history else pd.Series()
+    
+    daily_pnls = pd.Series([h.get("daily_pnl", 0.0) for h in detailed_history])
+    positions = pd.Series([h.get("position_type", "FLAT") for h in detailed_history])
+    
+    tot_ret = total_return(pd.Series(history), config.INITIAL_CASH)
+    max_dd = max_drawdown(pd.Series(history))
+    sharpe = sharpe_ratio(model_returns)
+    wr = win_rate(daily_pnls, positions)
+    calmar = calmar_ratio(tot_ret, max_dd)
+    alpha = alpha_vs_benchmark(model_returns, benchmark_returns)
+    
+    # Keep Sortino for backward compatibility
+    downside_returns = model_returns.copy()
+    downside_returns[downside_returns > 0] = 0
+    downside_std = downside_returns.std()
+    sortino = 0.0
+    if downside_std > 0:
+        sortino = (model_returns.mean() * 252) / (downside_std * np.sqrt(252)) if 'np' in globals() else (model_returns.mean() * 252) / (downside_std * 15.8745) # 15.8745 is sqrt(252)
+        
+    metrics = {
+        "Cumulative Return": f"{tot_ret:.2%}",
+        "Max Drawdown": f"{max_dd:.2%}",
+        "Sharpe Ratio": f"{sharpe:.4f}",
+        "Win Rate": f"{wr:.2%}",
+        "Calmar Ratio": f"{calmar:.4f}",
+        "Alpha vs Benchmark": f"{alpha:.2%}",
+        "Sortino Ratio": f"{sortino:.2f}"
+    }
     log.info(f"[{alias}] Metrics: {metrics}")
 
     exchange_results_dir = os.path.join(RESULTS_DIR, exchange)
     os.makedirs(exchange_results_dir, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    start_date_str = run_start.replace("-", "")
+    end_date_str = run_end.replace("-", "")
+
     result = {
-        "alias": alias,
+        "model_id": model_config['model_name'],
         "model_name": model_config['model_name'],
+        "alias": alias,
+        "prompt_version": active_prompt_version,
         "exchange": exchange,
+        "date_range": [run_start, run_end],
+        "initial_capital": config.INITIAL_CASH,
         "timestamp": timestamp,
         "metrics": metrics,
         "history": history,
         "detailed_history": detailed_history,
-        "trades": trades
+        "trades": trades,
+        "benchmark": {
+            "history": baseline_history,
+            "total_return": f"{((baseline_history[-1] - baseline_history[0]) / baseline_history[0]):.2%}" if baseline_history else "0.00%"
+        }
     }
 
     # Save timestamped run file
-    out_path = os.path.join(exchange_results_dir, f"{_safe_filename(alias)}_{timestamp}.json")
+    out_filename = f"{exchange}_{_safe_filename(alias)}_{active_prompt_version}_{start_date_str}_{end_date_str}.json"
+    out_path = os.path.join(exchange_results_dir, out_filename)
     with open(out_path, "w") as f:
         json.dump(result, f, indent=2)
     log.info(f"Results saved to {out_path}")
@@ -103,7 +181,6 @@ def run_single_model(model_index, exchange="BIST30", dev_mode=None, start_date=N
     log.info(f"Latest run copy saved to {latest_path}")
 
     return result
-
 
 def plot_all(exchange="BIST30"):
     log.info(f"=== Generating combined benchmark plot for {exchange} ===")
@@ -122,7 +199,6 @@ def plot_all(exchange="BIST30"):
     model_results = []
     all_metrics = {}
 
-    # Look for latest files
     result_files = sorted([f for f in os.listdir(exchange_results_dir) if f.startswith("latest_") and f.endswith(".json")])
     if not result_files:
         log.error(f"No result files found in {exchange_results_dir}. Run with --model first.")
@@ -142,11 +218,24 @@ def plot_all(exchange="BIST30"):
             (market_data['Date'] >= pd.Timestamp(start_date)) &
             (market_data['Date'] <= pd.Timestamp(end_date))
         ]['Date'].unique()
-        tickers = config.EXCHANGES.get(exchange, {}).get("tickers", config.TICKERS)
+        simulation_dates = sorted(simulation_dates)
+        
+        index_ticker = "^NDX" if exchange == "NASDAQ" else "XU030.IS"
         baseline_history = create_buy_and_hold_baseline(
-            config.INITIAL_CASH, tickers, market_data, simulation_dates
+            config.INITIAL_CASH, [index_ticker], market_data, simulation_dates
         )
-        baseline_metrics = calculate_metrics(baseline_history)
+        
+        # Calculate benchmark returns to compute metrics
+        benchmark_returns = pd.Series(baseline_history).pct_change().fillna(0) if baseline_history else pd.Series()
+        tot_ret = total_return(pd.Series(baseline_history), config.INITIAL_CASH)
+        max_dd = max_drawdown(pd.Series(baseline_history))
+        sharpe = sharpe_ratio(benchmark_returns)
+        
+        baseline_metrics = {
+            "Cumulative Return": f"{tot_ret:.2%}",
+            "Max Drawdown": f"{max_dd:.2%}",
+            "Sharpe Ratio": f"{sharpe:.4f}"
+        }
         all_metrics["Buy & Hold"] = baseline_metrics
         log.info(f"[Buy & Hold] Metrics: {baseline_metrics}")
     except Exception as e:
@@ -159,48 +248,40 @@ def plot_all(exchange="BIST30"):
     plot_performance(model_results, baseline_history)
     log.info("Plot saved to logs/performance_plot.png")
 
-
-def run_all_models(exchange="BIST30", dev_mode=None):
+def run_all_models(exchange="BIST30"):
     """Runs all models sequentially (original behavior)."""
     for idx in range(len(config.OPENROUTER_MODELS)):
-        run_single_model(idx, exchange=exchange, dev_mode=dev_mode)
+        run_single_model(str(idx), exchange=exchange)
     plot_all(exchange=exchange)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multi-Exchange LLM Benchmark")
-    parser.add_argument("--model", type=int, metavar="INDEX",
-                        help="Run backtest for a single model by index (0-based). See config.yaml for order.")
+    parser.add_argument("--model", type=str, metavar="INDEX_OR_NAME",
+                        help="Run backtest for a single model by index (0-based) or name (e.g. gpt-4o).")
     parser.add_argument("--exchange", type=str, default="BIST30", choices=["BIST30", "NASDAQ"],
                         help="Exchange to run backtest on (BIST30 or NASDAQ). Default: BIST30.")
-    parser.add_argument("--dev-mode", type=str, choices=["true", "false"],
-                        help="Override DEV_MODE configuration. Default: keep config.py value.")
     parser.add_argument("--start-date", type=str,
                         help="Custom start date for simulation (YYYY-MM-DD).")
     parser.add_argument("--end-date", type=str,
                         help="Custom end date for simulation (YYYY-MM-DD).")
     parser.add_argument("--cash", type=float,
                         help="Custom initial cash amount for simulation.")
+    parser.add_argument("--prompt-version", type=str,
+                        help="Override prompt version string. Default: keep config.py value.")
     parser.add_argument("--plot", action="store_true",
                         help="Load all saved results and generate the combined plot.")
     args = parser.parse_args()
-
-    dev_override = None
-    if args.dev_mode == "true":
-        dev_override = True
-    elif args.dev_mode == "false":
-        dev_override = False
 
     if args.plot:
         plot_all(exchange=args.exchange)
     elif args.model is not None:
         run_single_model(
-            model_index=args.model,
+            model_input=args.model,
             exchange=args.exchange,
-            dev_mode=dev_override,
             start_date=args.start_date,
             end_date=args.end_date,
-            initial_cash=args.cash
+            initial_cash=args.cash,
+            prompt_version=args.prompt_version
         )
     else:
-        run_all_models(exchange=args.exchange, dev_mode=dev_override)
+        run_all_models(exchange=args.exchange)

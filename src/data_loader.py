@@ -26,18 +26,28 @@ def load_market_data(exchange="BIST30"):
     
     df = pd.read_csv(path)
     
-    # --- FIX ---
     # Explicitly convert price and volume columns to numeric types.
-    # This prevents errors if pandas misinterprets the column type.
     numeric_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
     for col in numeric_cols:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce') # 'coerce' turns non-numeric values into NaN
+            df[col] = pd.to_numeric(df[col], errors='coerce')
     
-    # Drop rows with any NaN values that might have resulted from conversion errors
     df.dropna(subset=numeric_cols, inplace=True)
-    
-    log.info("Market data loaded and numeric columns converted successfully.")
+    df['Date'] = df['Date'].astype(str)
+
+    # Validate index ticker is present
+    index_ticker = "^NDX" if exchange == "NASDAQ" else "XU030.IS"
+    unique_tickers = df['ticker'].unique()
+
+    if index_ticker not in unique_tickers:
+        log.error(f"Index ticker '{index_ticker}' is missing from the market dataset.")
+        raise FileNotFoundError(
+            f"Market data for index '{index_ticker}' is missing. "
+            f"Please check your internet connection/VPN and run "
+            f"'python scripts/collect_data.py' to download Yahoo Finance data."
+        )
+
+    log.info("Market data loaded and components verified successfully.")
     return df
 
 def load_news_data(exchange="BIST30"):

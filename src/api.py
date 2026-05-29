@@ -35,7 +35,6 @@ RESULTS_DIR = os.path.join(PROJECT_ROOT, "data", "results")
 class RunParams(BaseModel):
     model_index: int
     exchange: str  # "BIST30" or "NASDAQ"
-    dev_mode: bool
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     cash: Optional[float] = None
@@ -173,8 +172,7 @@ async def run_backtest_subprocess(params: RunParams):
         "-u",  # Unbuffered stdout
         os.path.join(PROJECT_ROOT, "src", "main.py"),
         "--model", str(params.model_index),
-        "--exchange", params.exchange,
-        "--dev-mode", "true" if params.dev_mode else "false"
+        "--exchange", params.exchange
     ]
     if params.start_date:
         cmd.extend(["--start-date", params.start_date])
@@ -254,8 +252,7 @@ def get_api_config():
             "NEWS_API_KEY": os.getenv("NEWS_API_KEY") or "Not Set",
             "OPEN_ROUTER_KEY": os.getenv("OPEN_ROUTER_KEY") or "Not Set",
             "FINNHUB_API_KEY": os.getenv("FINNHUB_API_KEY") or "Not Set",
-        },
-        "dev_mode": config.DEV_MODE
+        }
     }
 
 

@@ -56,7 +56,6 @@ export default function App() {
 
   // Runner Parameters State
   const [selectedModelIndex, setSelectedModelIndex] = useState(0);
-  const [devModeOverride, setDevModeOverride] = useState(true);
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [initialCashInput, setInitialCashInput] = useState(1000000);
@@ -199,7 +198,6 @@ export default function App() {
       if (!res.ok) throw new Error("Failed to load config.");
       const data = await res.json();
       setConfigData(data);
-      setDevModeOverride(data.dev_mode);
       setApiError(null);
     } catch (err) {
       setApiError(err.message);
@@ -309,7 +307,6 @@ export default function App() {
         body: JSON.stringify({
           model_index: selectedModelIndex,
           exchange: exchange,
-          dev_mode: devModeOverride,
           start_date: startDateInput || null,
           end_date: endDateInput || null,
           cash: parseFloat(initialCashInput) || 1000000
@@ -364,16 +361,11 @@ export default function App() {
     const latestDay = singleRunDetails.detailed_history[singleRunDetails.detailed_history.length - 1];
     if (!latestDay) return [];
 
-    const data = [{ name: 'Cash', value: latestDay.cash }];
-    let stocksValue = 0;
-    
-    // Sum stock holdings values using latest day details if available
-    // For simplicity, we calculate total_value - cash
-    stocksValue = latestDay.total_value - latestDay.cash;
-    if (stocksValue > 0) {
-      data.push({ name: 'Stock Holdings', value: stocksValue });
-    }
-    return data;
+    const data = [
+      { name: 'Free Cash', value: latestDay.cash || 0 },
+      { name: 'Margin Posted', value: latestDay.margin_posted || 0 }
+    ];
+    return data.filter(d => d.value > 0);
   };
 
   const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6'];
@@ -387,13 +379,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-background text-slate-100 font-sans select-none flex-col">
-      {/* 1. Persistent Top DEV_MODE Banner */}
-      {configData?.dev_mode && (
-        <div className="bg-amber-600/90 text-white px-4 py-1 text-center text-xs font-bold flex items-center justify-center gap-2 border-b border-amber-500/20 shrink-0">
-          <AlertTriangle className="h-4 w-4" />
-          <span>⚠ DEV MODE ACTIVE — Dummy actions are being simulated (No LLM API costs)</span>
-        </div>
-      )}
+
 
       {/* Main Body */}
       <div className="flex flex-1 overflow-hidden">
@@ -742,18 +728,22 @@ export default function App() {
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse text-xs">
                           <thead>
-                            <tr className="border-b border-border text-slate-500 uppercase tracking-wider text-[10px]">
+                            <tr className="border-b border-border text-slate-500 uppercase tracking-wider text-[10px] font-mono">
                               <th className="py-2.5 px-3">Compare</th>
                               <th className="py-2.5 px-3">Model Alias</th>
-                              <th className="py-2.5 px-3">Timestamp</th>
+                              <th className="py-2.5 px-3">Prompt</th>
+                              <th className="py-2.5 px-3">Exchange</th>
                               <th className="py-2.5 px-3">Cum. Return</th>
                               <th className="py-2.5 px-3">Max DD</th>
+                              <th className="py-2.5 px-3 font-mono">Sharpe</th>
+                              <th className="py-2.5 px-3 font-mono">Win Rate</th>
+                              <th className="py-2.5 px-3 font-mono">Alpha</th>
                               <th className="py-2.5 px-3 text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border/60">
                             {historyList.map(run => (
-                              <tr key={run.filename} className="hover:bg-slate-800/40 transition-all">
+                              <tr key={run.filename} className="hover:bg-slate-800/40 transition-all font-mono">
                                 <td className="py-3 px-3">
                                   <input
                                     type="checkbox"
@@ -763,9 +753,13 @@ export default function App() {
                                   />
                                 </td>
                                 <td className="py-3 px-3 font-bold text-slate-300">{run.alias}</td>
-                                <td className="py-3 px-3 text-slate-500 font-mono">{run.timestamp}</td>
-                                <td className="py-3 px-3 text-emerald-400 font-bold font-mono">{run.metrics?.["Cumulative Return"] || '0.00%'}</td>
-                                <td className="py-3 px-3 text-rose-400 font-mono">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
+                                <td className="py-3 px-3 text-slate-400">{run.prompt_version || 'v1'}</td>
+                                <td className="py-3 px-3 text-slate-400">{run.exchange}</td>
+                                <td className="py-3 px-3 text-emerald-400 font-bold">{run.metrics?.["Cumulative Return"] || '0.00%'}</td>
+                                <td className="py-3 px-3 text-rose-400">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
+                                <td className="py-3 px-3 text-amber-400">{run.metrics?.["Sharpe Ratio"] || '-'}</td>
+                                <td className="py-3 px-3 text-blue-400">{run.metrics?.["Win Rate"] || '-'}</td>
+                                <td className="py-3 px-3 text-purple-400">{run.metrics?.["Alpha vs Benchmark"] || '-'}</td>
                                 <td className="py-3 px-3 text-right">
                                   <button
                                     onClick={() => {
@@ -959,32 +953,41 @@ export default function App() {
 
                       {/* Ticker holdings list table */}
                       <div className="bg-card border border-border p-6 rounded-xl">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Stock Holdings Ledger</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Futures Position Ledger</h3>
                         
                         <div className="space-y-3 font-mono text-xs">
                           {Object.entries(singleRunDetails.detailed_history?.[singleRunDetails.detailed_history.length - 1]?.holdings || {}).length === 0 ? (
                             <div className="text-center py-6 text-slate-500 text-[11px]">
-                              Zero active stock holdings (100% Cash allocation).
+                              Zero active futures positions (100% Cash allocation).
                             </div>
                           ) : (
-                            Object.entries(singleRunDetails.detailed_history[singleRunDetails.detailed_history.length - 1].holdings).map(([ticker, shares], idx) => (
-                              <div key={ticker} className="flex justify-between items-center p-2.5 rounded bg-slate-950/40 border border-border/40">
-                                <div>
-                                  <div className="font-bold text-slate-200 text-xs">{ticker}</div>
-                                  <div className="text-[10px] text-slate-500 mt-0.5">{shares.toLocaleString()} Shares</div>
+                            Object.entries(singleRunDetails.detailed_history[singleRunDetails.detailed_history.length - 1].holdings).map(([ticker, contracts], idx) => {
+                              const parts = ticker.split('_');
+                              const displayTicker = parts[0];
+                              const positionType = parts[1] || 'LONG';
+                              const unrealizedPnl = singleRunDetails.detailed_history[singleRunDetails.detailed_history.length - 1].unrealized_pnl || 0;
+                              return (
+                                <div key={ticker} className="flex justify-between items-center p-2.5 rounded bg-slate-950/40 border border-border/40">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-slate-200 text-xs">{displayTicker}</span>
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${positionType === 'LONG' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                                        {positionType}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 mt-0.5">{contracts.toLocaleString()} Contracts</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className={`text-xs font-bold ${unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                      PnL: {formatCurrency(unrealizedPnl)}
+                                    </div>
+                                    <div className="text-[9px] text-slate-500">
+                                      Margin: {formatCurrency(singleRunDetails.detailed_history[singleRunDetails.detailed_history.length - 1].margin_posted || 0)}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-slate-400 text-xs font-bold">
-                                  {/* Current price lookup if present in marketData */}
-                                  {marketData?.tickers?.find(t => t.ticker === ticker) ? (
-                                    <span>
-                                      {formatCurrency(shares * (marketData.tickers.find(t => t.ticker === ticker)?.price || 0))}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] text-slate-500">Value pending...</span>
-                                  )}
-                                </div>
-                              </div>
-                            ))
+                              );
+                            })
                           )}
                         </div>
                       </div>
@@ -1027,8 +1030,9 @@ export default function App() {
                       className="bg-slate-900 border border-border rounded-lg text-xs font-bold text-slate-200 px-4 py-2 outline-none cursor-pointer"
                     >
                       <option value="ALL">All Actions</option>
-                      <option value="BUY">BUY Only</option>
-                      <option value="SELL">SELL Only</option>
+                      <option value="LONG">LONG Only</option>
+                      <option value="SHORT">SHORT Only</option>
+                      <option value="EXIT">EXIT Only</option>
                       <option value="HOLD">HOLD Only</option>
                     </select>
 
@@ -1061,12 +1065,13 @@ export default function App() {
                         <thead>
                           <tr className="border-b border-border bg-slate-950/20 text-slate-500 uppercase tracking-wider text-[10px] font-mono">
                             <th className="py-3 px-4">Ticker</th>
-                            <th className="py-3 px-4">Action</th>
-                            <th className="py-3 px-4">Price</th>
-                            <th className="py-3 px-4">Quantity</th>
-                            <th className="py-3 px-4">Value</th>
+                            <th className="py-3 px-4">Type</th>
+                            <th className="py-3 px-4">Contracts</th>
+                            <th className="py-3 px-4">Entry Details</th>
+                            <th className="py-3 px-4">Exit Details</th>
+                            <th className="py-3 px-4">Realized P&L</th>
                             <th className="py-3 px-4">Confidence</th>
-                            <th className="py-3 px-4 text-right">Reasoning</th>
+                            <th className="py-3 px-4 text-right">Reasoning Log</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60">
@@ -1076,46 +1081,61 @@ export default function App() {
                               const matchAction = ledgerActionFilter === 'ALL' || t.decision === ledgerActionFilter;
                               return matchTicker && matchAction;
                             })
-                            .map((trade, idx) => (
-                              <tr key={idx} className="hover:bg-slate-800/40 transition-all">
-                                <td className="py-3 px-4 font-bold text-slate-300 font-mono">{trade.ticker}</td>
-                                <td className="py-3 px-4">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                      trade.decision === 'BUY'
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                        : trade.decision === 'SELL'
-                                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                    }`}
-                                  >
-                                    {trade.decision}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 font-mono text-slate-300">{formatCurrency(trade.price)}</td>
-                                <td className="py-3 px-4 font-mono text-slate-400">{trade.quantity ? trade.quantity.toLocaleString() : '-'}</td>
-                                <td className="py-3 px-4 font-mono text-slate-300 font-semibold">{trade.value ? formatCurrency(trade.value) : '-'}</td>
-                                <td className="py-3 px-4 font-mono">
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-12 bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                      <div
-                                        className="bg-blue-500 h-1.5 rounded-full"
-                                        style={{ width: `${trade.confidence * 100}%` }}
-                                      ></div>
+                            .map((trade, idx) => {
+                              const isPositivePnl = trade.pnl > 0;
+                              const isNegativePnl = trade.pnl < 0;
+                              return (
+                                <tr key={idx} className="hover:bg-slate-800/40 transition-all">
+                                  <td className="py-3 px-4 font-bold text-slate-300 font-mono">{trade.ticker}</td>
+                                  <td className="py-3 px-4">
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                        trade.decision === 'LONG' || trade.decision === 'BUY'
+                                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                          : trade.decision === 'SHORT' || trade.decision === 'SELL'
+                                          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                          : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                                      }`}
+                                    >
+                                      {trade.decision}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 font-mono text-slate-400">{trade.quantity ? trade.quantity.toLocaleString() : '-'}</td>
+                                  <td className="py-3 px-4 font-mono text-slate-300">
+                                    <div>{trade.entry_price ? formatCurrency(trade.entry_price) : (trade.price ? formatCurrency(trade.price) : '-')}</div>
+                                    <div className="text-[10px] text-slate-500 mt-0.5">{trade.entry_date || '-'}</div>
+                                  </td>
+                                  <td className="py-3 px-4 font-mono text-slate-300">
+                                    <div>{trade.exit_price ? formatCurrency(trade.exit_price) : '-'}</div>
+                                    <div className="text-[10px] text-slate-500 mt-0.5">{trade.exit_date || '-'}</div>
+                                  </td>
+                                  <td className={`py-3 px-4 font-mono font-bold ${
+                                    isPositivePnl ? 'text-emerald-400' : isNegativePnl ? 'text-rose-400' : 'text-slate-300'
+                                  }`}>
+                                    {trade.pnl !== undefined ? (isPositivePnl ? '+' : '') + formatCurrency(trade.pnl) : '-'}
+                                  </td>
+                                  <td className="py-3 px-4 font-mono">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-12 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                        <div
+                                          className="bg-blue-500 h-1.5 rounded-full"
+                                          style={{ width: `${trade.confidence}%` }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-[10px] text-slate-400">{trade.confidence}%</span>
                                     </div>
-                                    <span className="text-[10px] text-slate-400">{(trade.confidence * 100).toFixed(0)}%</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                  <button
-                                    onClick={() => setSelectedTrade(trade)}
-                                    className="bg-slate-900 border border-border hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-all font-semibold px-2.5 py-1 rounded"
-                                  >
-                                    Inspect Log
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                                  </td>
+                                  <td className="py-3 px-4 text-right">
+                                    <button
+                                      onClick={() => setSelectedTrade(trade)}
+                                      className="bg-slate-900 border border-border hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-all font-semibold px-2.5 py-1 rounded"
+                                    >
+                                      Inspect Log
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
@@ -1280,20 +1300,7 @@ export default function App() {
                         />
                       </div>
 
-                      {/* Dev mode toggle */}
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-border">
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold block">DEV MODE (Simulated Decisions)</span>
-                          <span className="text-[9px] text-slate-500 block mt-0.5">Toggle to prevent Gemini/OpenRouter API key usage costs</span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={devModeOverride}
-                          onChange={(e) => setDevModeOverride(e.target.checked)}
-                          disabled={runnerStatus === 'running'}
-                          className="h-5 w-5 bg-slate-900 border-border rounded text-blue-600 accent-blue-600 cursor-pointer disabled:cursor-not-allowed"
-                        />
-                      </div>
+
 
                       {/* Trigger Buttons */}
                       {runnerStatus === 'running' ? (
@@ -1415,7 +1422,7 @@ export default function App() {
                 <div className="bg-slate-950/40 p-3 rounded border border-border/50">
                   <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Signal Confidence</div>
                   <div className="text-sm font-black text-slate-300 mt-1 font-mono">
-                    {(selectedTrade.confidence * 100).toFixed(0)}%
+                    {selectedTrade.confidence}%
                   </div>
                 </div>
               </div>

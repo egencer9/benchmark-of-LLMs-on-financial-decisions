@@ -9,78 +9,203 @@ from src.logger import log
 import config
 
 class Portfolio:
-    """Spot trading portfolio."""
+    """Futures trading portfolio."""
 
-    def __init__(self, initial_cash=config.INITIAL_CASH):
+    def __init__(self, exchange="NASDAQ", initial_cash=None):
+        self.exchange = exchange
+        if initial_cash is None:
+            initial_cash = config.INITIAL_CASH
         self.initial_cash = initial_cash
-        self.cash = initial_cash
-        self.holdings = {}  # {ticker: shares}
+        self.cash = initial_cash  # Free cash (not posted as margin)
+        self.position_type = "FLAT"  # "LONG", "SHORT", or "FLAT"
+        self.entry_price = 0.0
+        self.contracts = 0
+        
+        if exchange == "NASDAQ":
+            self.multiplier = config.MULTIPLIER_NASDAQ
+        else:
+            self.multiplier = config.MULTIPLIER_BIST30
+            
         self.history = []
         self.detailed_history = []
         self.trades = []
-        log.info(f"Portfolio initialized with {initial_cash:,.2f}")
+        self.active_position = None
+        log.info(f"Portfolio initialized for {exchange} with {initial_cash:,.2f} {self.get_currency_symbol()}")
 
-    def get_total_value(self, current_prices):
-        total = self.cash
-        for ticker, shares in self.holdings.items():
-            total += shares * current_prices.get(ticker, 0)
-        return total
+    def get_currency_symbol(self):
+        return "$" if self.exchange == "NASDAQ" else "₺"
 
-    def update_history(self, current_prices, date_str=""):
-        total_val = self.get_total_value(current_prices)
-        self.history.append(total_val)
-        self.detailed_history.append({
-            "date": date_str if date_str else str(len(self.history)),
-            "total_value": total_val,
-            "cash": self.cash,
-            "holdings": {k: v for k, v in self.holdings.items() if v > 0}
-        })
-
-    def execute_trade(self, ticker, decision, price, confidence, reasoning="", trade_fraction=0.1):
-        total_value = self.get_total_value({ticker: price})
-        quantity = 0
-
-        if decision == 'BUY':
-            investment_amount = total_value * trade_fraction * confidence
-            if self.cash >= investment_amount and investment_amount > 0:
-                quantity = math.floor(investment_amount / price)
-                if quantity > 0:
-                    self.cash -= quantity * price
-                    self.holdings[ticker] = self.holdings.get(ticker, 0) + quantity
-                    log.info(f"BUY {quantity} shares of {ticker} @ {price:.2f} ({quantity * price:,.2f})")
-                else:
-                    log.info(f"Investment too small for one share of {ticker} ({investment_amount:.2f} < {price:.2f})")
-            else:
-                log.warning(f"Insufficient cash for BUY {ticker}. Have {self.cash:,.2f}, need {investment_amount:,.2f}")
-
-        elif decision == 'SELL':
-            quantity = self.holdings.get(ticker, 0)
-            if quantity > 0:
-                self.cash += quantity * price
-                del self.holdings[ticker]
-                log.info(f"SELL {quantity} shares of {ticker} @ {price:.2f} ({quantity * price:,.2f})")
-            else:
-                log.warning(f"No holdings to SELL for {ticker}.")
-
-        elif decision == 'HOLD':
-            log.info(f"HOLD {ticker}.")
+    def get_margin_per_contract(self, price):
+        if self.exchange == "NASDAQ":
+            return config.MARGIN_PER_CONTRACT_NASDAQ
         else:
-            log.warning(f"Invalid decision '{decision}' for {ticker}. Skipping.")
+            # BIST30: margin = 10% of contract value = 10% of (price * 0.1) = price * 0.01
+            return price * config.MULTIPLIER_BIST30 * config.MARGIN_PCT_BIST30
+
+    def get_margin_posted(self, price):
+        if self.position_type == "FLAT":
+            return 0.0
+        return self.contracts * self.get_margin_per_contract(self.entry_price)
+
+    def get_unrealized_pnl(self, price):
+        if self.position_type == "LONG":
+            return (price - self.entry_price) * self.multiplier * self.contracts
+        elif self.position_type == "SHORT":
+            return (self.entry_price - price) * self.multiplier * self.contracts
+        else:
+            return 0.0
+
+    def get_equity(self, price):
+        margin_posted = self.get_margin_posted(price)
+        unrealized_pnl = self.get_unrealized_pnl(price)
+        return self.cash + margin_posted + unrealized_pnl
+
+    def execute_trade(self, decision, price, confidence, date_str, reasoning=""):
+        current_equity = self.get_equity(price)
+        margin_needed = self.get_margin_per_contract(price)
+        
+        max_capital_at_risk = current_equity * config.MAX_RISK_PCT
+        max_possible_contracts = math.floor(max_capital_at_risk / margin_needed)
+        
+        # Position sizing scaled by confidence (0-100)
+        target_contracts = math.floor(max_possible_contracts * (confidence / 100.0))
+        target_contracts = max(config.MIN_CONTRACTS, target_contracts)
+
+        # Check against available cash + margin currently posted
+        total_available = self.cash + self.get_margin_posted(price)
+        if target_contracts * margin_needed > total_available:
+            target_contracts = math.floor(total_available / margin_needed)
+            target_contracts = max(config.MIN_CONTRACTS, target_contracts)
+
+        # If decision is HOLD
+        if decision == 'HOLD':
+            log.info(f"HOLD position. Current position: {self.position_type} ({self.contracts} contracts).")
             return
 
-        self.trades.append({
-            "ticker": ticker,
+        # If decision is FLAT
+        if decision == 'FLAT':
+            if self.position_type != "FLAT":
+                self.close_position(price, confidence, date_str, reasoning)
+            return
+
+        # If decision is LONG
+        if decision == 'LONG':
+            if self.position_type == "LONG":
+                log.info(f"Already LONG {self.contracts} contracts. Holding.")
+                return
+            if self.position_type == "SHORT":
+                self.close_position(price, confidence, date_str, "Flipping position to LONG.")
+            
+            # Open LONG
+            margin_to_post = target_contracts * margin_needed
+            if self.cash >= margin_to_post and target_contracts > 0:
+                self.cash -= margin_to_post
+                self.position_type = "LONG"
+                self.contracts = target_contracts
+                self.entry_price = price
+                self.active_position = {
+                    "ticker": "MNQ" if self.exchange == "NASDAQ" else "VIOP_BIST30",
+                    "type": "LONG",
+                    "entry_date": date_str,
+                    "entry_price": price,
+                    "quantity": target_contracts,
+                    "confidence": confidence,
+                    "reasoning": reasoning
+                }
+                log.info(f"Opened LONG {target_contracts} contracts @ {price:.2f} (Margin posted: {margin_to_post:,.2f})")
+            else:
+                log.warning(f"Insufficient cash to open LONG position. Have {self.cash:,.2f}, need {margin_to_post:,.2f}")
+
+        # If decision is SHORT
+        elif decision == 'SHORT':
+            if self.position_type == "SHORT":
+                log.info(f"Already SHORT {self.contracts} contracts. Holding.")
+                return
+            if self.position_type == "LONG":
+                self.close_position(price, confidence, date_str, "Flipping position to SHORT.")
+            
+            # Open SHORT
+            margin_to_post = target_contracts * margin_needed
+            if self.cash >= margin_to_post and target_contracts > 0:
+                self.cash -= margin_to_post
+                self.position_type = "SHORT"
+                self.contracts = target_contracts
+                self.entry_price = price
+                self.active_position = {
+                    "ticker": "MNQ" if self.exchange == "NASDAQ" else "VIOP_BIST30",
+                    "type": "SHORT",
+                    "entry_date": date_str,
+                    "entry_price": price,
+                    "quantity": target_contracts,
+                    "confidence": confidence,
+                    "reasoning": reasoning
+                }
+                log.info(f"Opened SHORT {target_contracts} contracts @ {price:.2f} (Margin posted: {margin_to_post:,.2f})")
+            else:
+                log.warning(f"Insufficient cash to open SHORT position. Have {self.cash:,.2f}, need {margin_to_post:,.2f}")
+
+    def close_position(self, price, confidence, date_str, reasoning):
+        pnl = self.get_unrealized_pnl(price)
+        margin_posted = self.get_margin_posted(price)
+        
+        self.cash += margin_posted + pnl
+        log.info(f"Closed {self.contracts} {self.position_type} contracts @ {price:.2f}. Realized PnL: {pnl:,.2f} {self.get_currency_symbol()}")
+        
+        if self.active_position:
+            self.trades.append({
+                "ticker": self.active_position["ticker"],
+                "decision": self.active_position["type"], # Required by schema (decision maps to LONG/SHORT)
+                "price": self.active_position["entry_price"], # Required by schema
+                "quantity": self.active_position["quantity"], # Required by schema
+                "value": self.active_position["quantity"] * self.active_position["entry_price"] * self.multiplier, # Required by schema
+                "confidence": self.active_position["confidence"], # Required by schema
+                "reasoning": f"Entry reasoning: {self.active_position['reasoning']}. Exit reasoning: {reasoning}", # Required by schema
+                
+                # New fields for round-trip trade details
+                "entry_date": self.active_position["entry_date"],
+                "entry_price": self.active_position["entry_price"],
+                "exit_date": date_str,
+                "exit_price": price,
+                "pnl": pnl
+            })
+            self.active_position = None
+        
+        self.position_type = "FLAT"
+        self.contracts = 0
+        self.entry_price = 0.0
+
+    def update_history(self, date_str, index_price, decision, confidence, daily_pnl, reasoning):
+        equity = self.get_equity(index_price)
+        margin_posted = self.get_margin_posted(index_price)
+        unrealized_pnl = self.get_unrealized_pnl(index_price)
+        
+        self.history.append(equity)
+        
+        holdings_dict = {}
+        if self.position_type != "FLAT":
+            ticker_name = "MNQ" if self.exchange == "NASDAQ" else "VIOP_BIST30"
+            holdings_dict[f"{ticker_name}_{self.position_type}"] = self.contracts
+            
+        self.detailed_history.append({
+            "date": date_str,
+            "index_price": index_price,
             "decision": decision,
-            "price": price,
-            "quantity": quantity,
-            "value": quantity * price,
             "confidence": confidence,
-            "reasoning": reasoning
+            "contracts": self.contracts,
+            "position_type": self.position_type,
+            "entry_price": self.entry_price,
+            "daily_pnl": daily_pnl,
+            "equity": equity,
+            "cash": self.cash,
+            "margin_posted": margin_posted,
+            "unrealized_pnl": unrealized_pnl,
+            "reasoning": reasoning,
+            "holdings": holdings_dict,
+            "total_value": equity
         })
 
-
 def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30"):
-    """Main backtesting loop for spot trading."""
+    """Main backtesting loop for futures index trading."""
     try:
         log.info(f"Loading market data for exchange '{exchange}' backtest...")
         market_data = load_market_data(exchange=exchange)
@@ -94,7 +219,7 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         log.warning(f"News data for exchange '{exchange}' not found — proceeding without news (LLM will rely on price action only).")
         news_data = pd.DataFrame(columns=['ticker', 'publishedAt', 'title', 'description', 'content'])
 
-    portfolio = Portfolio()
+    portfolio = Portfolio(exchange=exchange)
 
     market_data['Date'] = pd.to_datetime(market_data['Date'])
     start_date = pd.to_datetime(start_date)
@@ -105,6 +230,9 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
 
     log.info(f"Starting backtest from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} ({len(simulation_dates)} trading days)")
 
+    index_ticker = "^NDX" if exchange == "NASDAQ" else "XU030.IS"
+    yesterday_close = 0.0
+
     for current_date in simulation_dates:
         date_str = current_date.strftime('%Y-%m-%d')
         log.info(f"--- Trading Day: {date_str} ---")
@@ -112,14 +240,27 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         day_data = market_data[market_data['Date'] == current_date]
         current_prices = {row['ticker']: row['Close'] for _, row in day_data.iterrows()}
 
-        if not current_prices:
-            log.warning(f"No market data for {date_str}. Skipping.")
-            portfolio.update_history(current_prices, date_str)
+        if not current_prices or index_ticker not in current_prices:
+            log.warning(f"No index price for {date_str}. Skipping.")
+            portfolio.update_history(date_str, yesterday_close or 0.0, "HOLD", 50, 0.0, "No price data")
             continue
 
-        daily_market_data = {ticker: {'price': price} for ticker, price in current_prices.items()}
+        today_close = current_prices[index_ticker]
 
-        # Look back 7 days for news; fall back to the 3 most recent articles if none found
+        # Daily mark-to-market PnL
+        daily_pnl = 0.0
+        if yesterday_close > 0.0 and portfolio.position_type != "FLAT":
+            if portfolio.position_type == "LONG":
+                daily_pnl = (today_close - yesterday_close) * portfolio.multiplier * portfolio.contracts
+            elif portfolio.position_type == "SHORT":
+                daily_pnl = (yesterday_close - today_close) * portfolio.multiplier * portfolio.contracts
+        
+        # Accumulate daily mark-to-market cash flows
+        portfolio.cash += daily_pnl
+
+        # Daily component data & news summaries
+        daily_market_data = {ticker: {'price': price} for ticker, price in current_prices.items()}
+        
         lookback_start = current_date - timedelta(days=7)
         news_window = news_data[
             (news_data['publishedAt'].dt.date >= lookback_start.date()) &
@@ -130,41 +271,55 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         for ticker in current_prices.keys():
             ticker_news = news_window[news_window['ticker'] == ticker]
             if ticker_news.empty:
-                # Fallback: use most recent available articles regardless of date
                 ticker_news = news_data[news_data['ticker'] == ticker].sort_values('publishedAt', ascending=False)
             recent_news = ticker_news.sort_values(by='publishedAt', ascending=False).head(3)
             descriptions = " ".join(recent_news['description'].dropna())
             daily_news_summaries[ticker] = descriptions if descriptions else "No recent news found."
 
-        portfolio_state = {'cash': portfolio.cash, 'holdings': portfolio.holdings}
+        portfolio_state = {
+            'cash': portfolio.cash,
+            'equity': portfolio.get_equity(today_close),
+            'available_cash': portfolio.cash,
+            'position_type': portfolio.position_type,
+            'contracts': portfolio.contracts,
+            'entry_price': portfolio.entry_price,
+            'unrealized_pnl': portfolio.get_unrealized_pnl(today_close)
+        }
         master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange)
 
         available_tickers = list(current_prices.keys())
         decision_str = get_llm_decision(master_prompt, available_tickers, model_config=model_config)
 
-        try:
-            clean_response = decision_str.strip().replace('```json', '').replace('```', '')
-            decisions = json.loads(clean_response)
-            log.info(f"LLM Decisions Parsed: {decisions}")
-        except (json.JSONDecodeError, TypeError, AttributeError) as e:
-            log.error(f"Failed to decode LLM response: {e}. Response was: {decision_str}")
-            decisions = {}
+        # Parse decision
+        from src.llm_agent import parse_llm_response
+        decision_data = parse_llm_response(decision_str)
+        log.info(f"LLM Decisions Parsed: {decision_data}")
 
-        log.info("Executing trades based on LLM decisions...")
-        for ticker, decision_data in decisions.items():
-            if ticker not in current_prices:
-                log.warning(f"LLM returned decision for unknown ticker '{ticker}'. Ignoring.")
-                continue
-            portfolio.execute_trade(
-                ticker=ticker,
-                decision=decision_data.get('decision'),
-                price=current_prices[ticker],
-                confidence=decision_data.get('confidence', 0.5),
-                reasoning=decision_data.get('reasoning', '')
-            )
+        # Execute
+        portfolio.execute_trade(
+            decision=decision_data.get('decision'),
+            price=today_close,
+            confidence=decision_data.get('confidence', 50),
+            date_str=date_str,
+            reasoning=decision_data.get('reasoning', '')
+        )
 
-        portfolio.update_history(current_prices, date_str)
-        log.info(f"End of day portfolio value: {portfolio.get_total_value(current_prices):,.2f}")
+        portfolio.update_history(
+            date_str=date_str,
+            index_price=today_close,
+            decision=decision_data.get('decision'),
+            confidence=decision_data.get('confidence', 50),
+            daily_pnl=daily_pnl,
+            reasoning=decision_data.get('reasoning', '')
+        )
+        
+        yesterday_close = today_close
+        log.info(f"End of day equity: {portfolio.get_equity(today_close):,.2f}")
+
+    # Close any open position at the final day's price to log the final trade
+    if portfolio.position_type != "FLAT":
+        last_date_str = simulation_dates[-1].strftime('%Y-%m-%d')
+        portfolio.close_position(price=today_close, confidence=50, date_str=last_date_str, reasoning="Simulation ended.")
 
     log.info("--- Backtest Finished ---")
     if return_details:
