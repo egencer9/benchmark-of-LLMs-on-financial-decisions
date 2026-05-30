@@ -248,14 +248,14 @@ def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BI
     else:
         mechanics_text = """**BIST30 Futures (VIOP) Mechanics:**
 - Asset: VIOP BIST30 Index Futures contracts (XU030.IS).
-- Contract Value: (Index Price / 1000) * 100 TL = Index Price * 0.1 TL (e.g. index at 120,000 = contract value of 12,000 TL).
-- Multiplier: 0.1 (1 index point change represents ₺0.1 profit or loss per contract).
-- Margin: 10% of the contract value (e.g. ₺1,200 margin for a 12,000 TL contract).
+- Contract Value: Index Price * 10 TL (e.g. index at 15,000 = contract value of 150,000 TL).
+- Multiplier: 10 (1 index point change represents ₺10 profit or loss per contract).
+- Margin: 10% of the contract value (which equals the BIST30 index price, e.g. ₺15,000 margin for a 150,000 TL contract).
 - LONG: You profit when the BIST 30 Index rises.
 - SHORT: You profit when the BIST 30 Index falls. No borrowing required — you simply sell the contract.
 - FLAT: Exits all positions, holding cash only.
 - HOLD: Maintains the current position.
-- Worked Example: BIST30 at 120,000. You LONG 10 contracts. Index rises 2,000 points to 122,000. Profit = 2,000 points × 0.1 × 10 contracts = ₺2,000."""
+- Worked Example: BIST30 at 15,000. You LONG 10 contracts. Index rises 200 points to 15,200. Profit = 200 points × 10 × 10 contracts = ₺20,000."""
 
     prompt = f"""You are a financial trading agent operating on {exchange}.
 You are benchmarked against other AI models. You trade index futures contracts only.
