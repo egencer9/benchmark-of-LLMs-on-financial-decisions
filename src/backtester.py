@@ -57,8 +57,13 @@ class Portfolio:
 
     def get_equity(self, price):
         margin_posted = self.get_margin_posted(price)
-        unrealized_pnl = self.get_unrealized_pnl(price)
-        return self.cash + margin_posted + unrealized_pnl
+        if getattr(config, 'INTRADAY_ONLY', False):
+            unrealized_pnl = self.get_unrealized_pnl(price)
+            return self.cash + margin_posted + unrealized_pnl
+        else:
+            # Since cash is marked-to-market daily in overnight mode, it already includes daily PnLs.
+            return self.cash + margin_posted
+
 
     def execute_trade(self, decision, price, confidence, date_str, reasoning=""):
         current_equity = self.get_equity(price)
@@ -148,7 +153,12 @@ class Portfolio:
         pnl = self.get_unrealized_pnl(price)
         margin_posted = self.get_margin_posted(price)
         
-        self.cash += margin_posted + pnl
+        if getattr(config, 'INTRADAY_ONLY', False):
+            self.cash += margin_posted + pnl
+        else:
+            # PnL has already been added to cash daily via mark-to-market in overnight mode
+            self.cash += margin_posted
+            
         log.info(f"Closed {self.contracts} {self.position_type} contracts @ {price:.2f}. Realized PnL: {pnl:,.2f} {self.get_currency_symbol()}")
         
         if self.active_position:
@@ -233,12 +243,15 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
     index_ticker = "^NDX" if exchange == "NASDAQ" else "XU030.IS"
     yesterday_close = 0.0
 
+    is_intraday = getattr(config, 'INTRADAY_ONLY', False)
+
     for current_date in simulation_dates:
         date_str = current_date.strftime('%Y-%m-%d')
         log.info(f"--- Trading Day: {date_str} ---")
 
         day_data = market_data[market_data['Date'] == current_date]
         current_prices = {row['ticker']: row['Close'] for _, row in day_data.iterrows()}
+        open_prices = {row['ticker']: row['Open'] for _, row in day_data.iterrows()}
 
         if not current_prices or index_ticker not in current_prices:
             log.warning(f"No index price for {date_str}. Skipping.")
@@ -246,21 +259,28 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
             continue
 
         today_close = current_prices[index_ticker]
+        today_open = open_prices.get(index_ticker, today_close)
 
         # Daily mark-to-market PnL
         daily_pnl = 0.0
-        if yesterday_close > 0.0 and portfolio.position_type != "FLAT":
-            if portfolio.position_type == "LONG":
-                daily_pnl = (today_close - yesterday_close) * portfolio.multiplier * portfolio.contracts
-            elif portfolio.position_type == "SHORT":
-                daily_pnl = (yesterday_close - today_close) * portfolio.multiplier * portfolio.contracts
-        
-        # Accumulate daily mark-to-market cash flows
-        portfolio.cash += daily_pnl
+        if not is_intraday:
+            # Overnight: compute daily mark-to-market PnL from yesterday's close to today's close
+            if yesterday_close > 0.0 and portfolio.position_type != "FLAT":
+                if portfolio.position_type == "LONG":
+                    daily_pnl = (today_close - yesterday_close) * portfolio.multiplier * portfolio.contracts
+                elif portfolio.position_type == "SHORT":
+                    daily_pnl = (yesterday_close - today_close) * portfolio.multiplier * portfolio.contracts
+            
+            # Accumulate daily mark-to-market cash flows
+            portfolio.cash += daily_pnl
+            
+            # In overnight mode, the LLM receives the closing price
+            daily_market_data = {ticker: {'price': price} for ticker, price in current_prices.items()}
+        else:
+            # In intraday mode, the LLM receives the opening price
+            daily_market_data = {ticker: {'price': open_prices.get(ticker, current_prices[ticker])} for ticker in current_prices.keys()}
 
         # Daily component data & news summaries
-        daily_market_data = {ticker: {'price': price} for ticker, price in current_prices.items()}
-        
         lookback_start = current_date - timedelta(days=7)
         news_window = news_data[
             (news_data['publishedAt'].dt.date >= lookback_start.date()) &
@@ -278,45 +298,88 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
 
         portfolio_state = {
             'cash': portfolio.cash,
-            'equity': portfolio.get_equity(today_close),
+            'equity': portfolio.get_equity(today_open if is_intraday else today_close),
             'available_cash': portfolio.cash,
             'position_type': portfolio.position_type,
             'contracts': portfolio.contracts,
             'entry_price': portfolio.entry_price,
-            'unrealized_pnl': portfolio.get_unrealized_pnl(today_close)
+            'unrealized_pnl': portfolio.get_unrealized_pnl(today_open if is_intraday else today_close)
         }
-        master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange)
 
-        available_tickers = list(current_prices.keys())
-        decision_str = get_llm_decision(master_prompt, available_tickers, model_config=model_config)
+        is_last_day = (current_date == simulation_dates[-1])
+        if is_last_day:
+            log.info("Last day of backtest. Forcing FLAT decision to close all positions and turn all money into cash.")
+            decision_data = {
+                "decision": "FLAT",
+                "confidence": 100,
+                "reasoning": "Forced FLAT on the last day of backtest to leave no open positions and liquidate all assets to cash."
+            }
+        else:
+            master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange)
+            available_tickers = list(current_prices.keys())
+            decision_str = get_llm_decision(master_prompt, available_tickers, model_config=model_config)
 
-        # Parse decision
-        from src.llm_agent import parse_llm_response
-        decision_data = parse_llm_response(decision_str)
-        log.info(f"LLM Decisions Parsed: {decision_data}")
+            # Parse decision
+            from src.llm_agent import parse_llm_response
+            decision_data = parse_llm_response(decision_str)
+            log.info(f"LLM Decisions Parsed: {decision_data}")
 
-        # Execute
-        portfolio.execute_trade(
-            decision=decision_data.get('decision'),
-            price=today_close,
-            confidence=decision_data.get('confidence', 50),
-            date_str=date_str,
-            reasoning=decision_data.get('reasoning', '')
-        )
-
-        portfolio.update_history(
-            date_str=date_str,
-            index_price=today_close,
-            decision=decision_data.get('decision'),
-            confidence=decision_data.get('confidence', 50),
-            daily_pnl=daily_pnl,
-            reasoning=decision_data.get('reasoning', '')
-        )
+        # Execute Trade
+        if not is_intraday:
+            # Overnight: execute trade at the closing price
+            portfolio.execute_trade(
+                decision=decision_data.get('decision'),
+                price=today_close,
+                confidence=decision_data.get('confidence', 50),
+                date_str=date_str,
+                reasoning=decision_data.get('reasoning', '')
+            )
+            
+            portfolio.update_history(
+                date_str=date_str,
+                index_price=today_close,
+                decision=decision_data.get('decision'),
+                confidence=decision_data.get('confidence', 50),
+                daily_pnl=daily_pnl,
+                reasoning=decision_data.get('reasoning', '')
+            )
+        else:
+            # Intraday: execute trade at the opening price
+            portfolio.execute_trade(
+                decision=decision_data.get('decision'),
+                price=today_open,
+                confidence=decision_data.get('confidence', 50),
+                date_str=date_str,
+                reasoning=decision_data.get('reasoning', '')
+            )
+            
+            # End of day: calculate PnL at close and then close the position
+            if portfolio.position_type != "FLAT":
+                daily_pnl = portfolio.get_unrealized_pnl(today_close)
+                
+            # Log history before we close the position so that the day's record logs the held position type and margin
+            portfolio.update_history(
+                date_str=date_str,
+                index_price=today_close,
+                decision=decision_data.get('decision'),
+                confidence=decision_data.get('confidence', 50),
+                daily_pnl=daily_pnl,
+                reasoning=decision_data.get('reasoning', '')
+            )
+            
+            # Force close the position at today's close price
+            if portfolio.position_type != "FLAT":
+                portfolio.close_position(
+                    price=today_close,
+                    confidence=decision_data.get('confidence', 50),
+                    date_str=date_str,
+                    reasoning=f"Intraday exit. {decision_data.get('reasoning', '')}"
+                )
         
         yesterday_close = today_close
         log.info(f"End of day equity: {portfolio.get_equity(today_close):,.2f}")
 
-    # Close any open position at the final day's price to log the final trade
+    # Close any open position at the final day's price to log the final trade (if any remaining)
     if portfolio.position_type != "FLAT":
         last_date_str = simulation_dates[-1].strftime('%Y-%m-%d')
         portfolio.close_position(price=today_close, confidence=50, date_str=last_date_str, reasoning="Simulation ended.")

@@ -76,6 +76,7 @@ SIMULATION_DAYS = 30
 
 # --- Trading Configuration ---
 TRADING_MODE = 'futures'  # futures index trading
+INTRADAY_ONLY = True  # If True, trade intraday (enter on Open, exit on Close). If False, carry overnight.
 MARGIN_PER_CONTRACT_NASDAQ = 2000
 MARGIN_PCT_BIST30 = 0.10
 MULTIPLIER_NASDAQ = 2
