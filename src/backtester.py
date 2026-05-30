@@ -291,7 +291,12 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         for ticker in current_prices.keys():
             ticker_news = news_window[news_window['ticker'] == ticker]
             if ticker_news.empty:
-                ticker_news = news_data[news_data['ticker'] == ticker].sort_values('publishedAt', ascending=False)
+                # Fallback: strictly query historical news up to current simulation day (no future news!)
+                historical_news = news_data[
+                    (news_data['ticker'] == ticker) &
+                    (news_data['publishedAt'].dt.date <= current_date.date())
+                ]
+                ticker_news = historical_news.sort_values('publishedAt', ascending=False)
             recent_news = ticker_news.sort_values(by='publishedAt', ascending=False).head(3)
             descriptions = " ".join(recent_news['description'].dropna())
             daily_news_summaries[ticker] = descriptions if descriptions else "No recent news found."

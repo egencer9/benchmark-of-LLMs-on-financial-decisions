@@ -62,7 +62,7 @@ export default function App() {
   const [selectedModelIndex, setSelectedModelIndex] = useState(0);
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
-  const [initialCashInput, setInitialCashInput] = useState(1000000);
+  const [initialCashInput, setInitialCashInput] = useState(100000);
 
   // Global Runner / WS States
   const [runnerStatus, setRunnerStatus] = useState('idle'); // "idle", "running", "finished", "failed"
@@ -337,12 +337,30 @@ export default function App() {
     }
   };
 
+  const formatRunCapital = (run) => {
+    if (!run || run.initial_capital === undefined || run.initial_capital === null) return '-';
+    const sym = run.exchange === 'BIST30' ? '₺' : '$';
+    return `${sym}${run.initial_capital.toLocaleString()}`;
+  };
+
   // Helper selectors
   const toggleCompareRun = (filename) => {
+    const targetRun = historyList.find(h => h.filename === filename);
+    if (!targetRun) return;
+
     setSelectedRunsForCompare(prev => {
       if (prev.includes(filename)) {
         return prev.filter(f => f !== filename);
       } else {
+        // Check if there are already selected runs and if they have the same budget
+        if (prev.length > 0) {
+          const firstSelectedFilename = prev[0];
+          const firstSelectedRun = historyList.find(h => h.filename === firstSelectedFilename);
+          if (firstSelectedRun && firstSelectedRun.initial_capital !== targetRun.initial_capital) {
+            alert(`You can only compare runs with the same budget. Selected budget: ${formatRunCapital(firstSelectedRun)}, target budget: ${formatRunCapital(targetRun)}.`);
+            return prev;
+          }
+        }
         // Limit to 3 compare runs overlay
         if (prev.length >= 3) {
           alert("You can compare up to 3 runs at the same time.");
@@ -736,7 +754,7 @@ export default function App() {
                               <th className="py-2.5 px-3">Compare</th>
                               <th className="py-2.5 px-3">Model Alias</th>
                               <th className="py-2.5 px-3">Prompt</th>
-                              <th className="py-2.5 px-3">Exchange</th>
+                              <th className="py-2.5 px-3">Budget</th>
                               <th className="py-2.5 px-3">Cum. Return</th>
                               <th className="py-2.5 px-3">Max DD</th>
                               <th className="py-2.5 px-3 font-mono">Sharpe</th>
@@ -758,7 +776,7 @@ export default function App() {
                                 </td>
                                 <td className="py-3 px-3 font-bold text-slate-300">{run.alias}</td>
                                 <td className="py-3 px-3 text-slate-400">{run.prompt_version || 'v1'}</td>
-                                <td className="py-3 px-3 text-slate-400">{run.exchange}</td>
+                                <td className="py-3 px-3 text-slate-400">{formatRunCapital(run)}</td>
                                 <td className="py-3 px-3 text-emerald-400 font-bold">{run.metrics?.["Cumulative Return"] || '0.00%'}</td>
                                 <td className="py-3 px-3 text-rose-400">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
                                 <td className="py-3 px-3 text-amber-400">{run.metrics?.["Sharpe Ratio"] || '-'}</td>
@@ -1295,13 +1313,18 @@ export default function App() {
                       {/* Initial Cash */}
                       <div>
                         <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">Initial Investment Capital</label>
-                        <input
-                          type="number"
+                        <select
                           value={initialCashInput}
-                          onChange={(e) => setInitialCashInput(e.target.value)}
+                          onChange={(e) => setInitialCashInput(parseInt(e.target.value))}
                           disabled={runnerStatus === 'running'}
-                          className="w-full bg-slate-950 border border-border rounded-lg text-xs font-bold text-slate-200 px-4 py-2.5 outline-none font-mono disabled:cursor-not-allowed disabled:opacity-50"
-                        />
+                          className="w-full bg-slate-950 border border-border rounded-lg text-xs font-bold text-slate-200 px-4 py-2.5 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                        >
+                          {[10000, 25000, 50000, 100000, 250000, 500000, 1000000].map(val => (
+                            <option key={val} value={val}>
+                              {val.toLocaleString('de-DE')}{currencySymbol}{val === 100000 ? ' (★)' : ''}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
 

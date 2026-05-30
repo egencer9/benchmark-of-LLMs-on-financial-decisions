@@ -309,7 +309,9 @@ def get_backtest_history(
                     "metrics": r.get("metrics"),
                     "history_length": len(r.get("history", [])),
                     "trades_count": len(r.get("trades", [])),
-                    "created_at": stat.st_mtime
+                    "created_at": stat.st_mtime,
+                    "exchange": r.get("exchange"),
+                    "initial_capital": r.get("initial_capital")
                 })
         except Exception as e:
             log.warning(f"Error parsing history file {fname}: {e}")
