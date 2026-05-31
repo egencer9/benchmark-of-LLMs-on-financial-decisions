@@ -11,7 +11,7 @@ import config
 class Portfolio:
     """Futures trading portfolio."""
 
-    def __init__(self, exchange="NASDAQ", initial_cash=None):
+    def __init__(self, exchange="NASDAQ", initial_cash=None, trading_approach="Balanced"):
         self.exchange = exchange
         if initial_cash is None:
             initial_cash = config.INITIAL_CASH
@@ -30,7 +30,12 @@ class Portfolio:
         self.detailed_history = []
         self.trades = []
         self.active_position = None
-        log.info(f"Portfolio initialized for {exchange} with {initial_cash:,.2f} {self.get_currency_symbol()}")
+        
+        self.trading_approach = trading_approach
+        from src.trading_approach import TradingApproachFactory
+        self.approach = TradingApproachFactory.get_approach(trading_approach)
+        
+        log.info(f"Portfolio initialized for {exchange} with {initial_cash:,.2f} {self.get_currency_symbol()} and approach '{self.approach.name}'")
 
     def get_currency_symbol(self):
         return "$" if self.exchange == "NASDAQ" else "₺"
@@ -66,15 +71,21 @@ class Portfolio:
 
 
     def execute_trade(self, decision, price, confidence, date_str, reasoning=""):
+        # Override decision if confidence is below strategy threshold
+        threshold = self.approach.get_trade_confidence_threshold()
+        if decision in ['LONG', 'SHORT'] and confidence < threshold:
+            log.info(f"Decision overridden: {decision} -> HOLD (confidence {confidence}% < threshold {threshold}%)")
+            decision = 'HOLD'
+
         current_equity = self.get_equity(price)
         margin_needed = self.get_margin_per_contract(price)
         
-        max_capital_at_risk = current_equity * config.MAX_RISK_PCT
+        max_capital_at_risk = current_equity * self.approach.get_max_risk_pct()
         max_possible_contracts = math.floor(max_capital_at_risk / margin_needed)
         
-        # Position sizing scaled by confidence (0-100)
-        target_contracts = math.floor(max_possible_contracts * (confidence / 100.0))
-        target_contracts = max(config.MIN_CONTRACTS, target_contracts)
+        # Position sizing scaled by confidence and approach rules
+        target_contracts = self.approach.calculate_position_size(max_possible_contracts, confidence)
+        target_contracts = max(getattr(config, 'MIN_CONTRACTS', 1), target_contracts)
 
         # Check against available cash + margin currently posted
         total_available = self.cash + self.get_margin_posted(price)
@@ -117,7 +128,8 @@ class Portfolio:
                     "confidence": confidence,
                     "reasoning": reasoning
                 }
-                log.info(f"Opened LONG {target_contracts} contracts @ {price:.2f} (Margin posted: {margin_to_post:,.2f})")
+                log.info(f"=== TRADE TAKEN: Opened LONG {target_contracts} contracts @ {price:.2f} (Margin posted: {margin_to_post:,.2f}) ===")
+                log.info(f"Entry Reason: {reasoning}")
             else:
                 log.warning(f"Insufficient cash to open LONG position. Have {self.cash:,.2f}, need {margin_to_post:,.2f}")
 
@@ -145,7 +157,8 @@ class Portfolio:
                     "confidence": confidence,
                     "reasoning": reasoning
                 }
-                log.info(f"Opened SHORT {target_contracts} contracts @ {price:.2f} (Margin posted: {margin_to_post:,.2f})")
+                log.info(f"=== TRADE TAKEN: Opened SHORT {target_contracts} contracts @ {price:.2f} (Margin posted: {margin_to_post:,.2f}) ===")
+                log.info(f"Entry Reason: {reasoning}")
             else:
                 log.warning(f"Insufficient cash to open SHORT position. Have {self.cash:,.2f}, need {margin_to_post:,.2f}")
 
@@ -159,7 +172,8 @@ class Portfolio:
             # PnL has already been added to cash daily via mark-to-market in overnight mode
             self.cash += margin_posted
             
-        log.info(f"Closed {self.contracts} {self.position_type} contracts @ {price:.2f}. Realized PnL: {pnl:,.2f} {self.get_currency_symbol()}")
+        log.info(f"=== TRADE EXIT: Closed {self.contracts} {self.position_type} contracts @ {price:.2f}. Realized PnL: {pnl:,.2f} {self.get_currency_symbol()} ===")
+        log.info(f"Exit Reason: {reasoning}")
         
         if self.active_position:
             self.trades.append({
@@ -214,7 +228,7 @@ class Portfolio:
             "total_value": equity
         })
 
-def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30"):
+def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30", trading_approach="Balanced"):
     """Main backtesting loop for futures index trading."""
     try:
         log.info(f"Loading market data for exchange '{exchange}' backtest...")
@@ -229,7 +243,7 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         log.warning(f"News data for exchange '{exchange}' not found — proceeding without news (LLM will rely on price action only).")
         news_data = pd.DataFrame(columns=['ticker', 'publishedAt', 'title', 'description', 'content'])
 
-    portfolio = Portfolio(exchange=exchange)
+    portfolio = Portfolio(exchange=exchange, trading_approach=trading_approach)
 
     market_data['Date'] = pd.to_datetime(market_data['Date'])
     start_date = pd.to_datetime(start_date)
@@ -320,14 +334,24 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
                 "reasoning": "Forced FLAT on the last day of backtest to leave no open positions and liquidate all assets to cash."
             }
         else:
-            master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange)
+            master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange, trading_approach=trading_approach)
             available_tickers = list(current_prices.keys())
+            
+            log.info(f"\n=================== PROMPT SENT TO AI (Date: {date_str}) ===================")
+            log.info(master_prompt)
+            log.info("=========================================================================\n")
+            
             decision_str = get_llm_decision(master_prompt, available_tickers, model_config=model_config)
+
+            log.info(f"\n=================== AI RAW RESPONSE (Date: {date_str}) ===================")
+            log.info(decision_str)
+            log.info("=========================================================================\n")
 
             # Parse decision
             from src.llm_agent import parse_llm_response
             decision_data = parse_llm_response(decision_str)
-            log.info(f"LLM Decisions Parsed: {decision_data}")
+            log.info(f"AI Parsed Decision: {decision_data.get('decision')} | Confidence: {decision_data.get('confidence')}%")
+            log.info(f"AI Sentiment/Reasoning: {decision_data.get('reasoning')}")
 
         # Execute Trade
         if not is_intraday:

@@ -214,8 +214,8 @@ def parse_llm_response(response_str):
 
 # Dummy response generator removed to enforce strict real-data production runs.
 
-def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BIST30"):
-    log.debug(f"Constructing {exchange} master prompt...")
+def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BIST30", trading_approach="Balanced"):
+    log.debug(f"Constructing {exchange} master prompt with approach {trading_approach}...")
 
     exch_config = config.EXCHANGES.get(exchange, config.EXCHANGES["BIST30"])
     currency = exch_config["currency"]
@@ -257,6 +257,16 @@ def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BI
 - HOLD: Maintains the current position.
 - Worked Example: BIST30 at 15,000. You LONG 10 contracts. Index rises 200 points to 15,200. Profit = 200 points × 10 × 10 contracts = ₺20,000."""
 
+    from src.trading_approach import TradingApproachFactory
+    approach = TradingApproachFactory.get_approach(trading_approach)
+    approach_instructions = approach.adjust_prompt_instructions()
+
+    if approach_instructions:
+        instructions_text = f"""4. Trading Stance: {approach_instructions}
+5. Output a single valid JSON object containing exactly the keys: "decision", "confidence", and "reasoning". Do not include any markdown fences or conversational filler."""
+    else:
+        instructions_text = """4. Output a single valid JSON object containing exactly the keys: "decision", "confidence", and "reasoning". Do not include any markdown fences or conversational filler."""
+
     prompt = f"""You are a financial trading agent operating on {exchange}.
 You are benchmarked against other AI models. You trade index futures contracts only.
 Individual stock news and prices are provided purely to build your daily directional bias. You NEVER trade individual stocks directly.
@@ -285,7 +295,7 @@ Individual stock news and prices are provided purely to build your daily directi
 1. Analyze the macroeconomic news and the individual stock headlines to form a single daily directional bias.
 2. Determine whether to go/stay LONG, go/stay SHORT, go FLAT (hold cash), or HOLD (keep current position).
 3. Assign a confidence score from 0 to 100 (where 100 is maximum confidence and 0 is none). Your confidence score will scale the risk (number of contracts traded). Higher confidence = larger position size.
-4. Output a single valid JSON object containing exactly the keys: "decision", "confidence", and "reasoning". Do not include any markdown fences or conversational filler.
+{instructions_text}
 
 **JSON SCHEMA:**
 {{
@@ -297,3 +307,4 @@ Individual stock news and prices are provided purely to build your daily directi
 YOUR RESPONSE (JSON ONLY):
 """
     return prompt
+

@@ -30,7 +30,7 @@ def _load_market_data_with_dates(exchange="BIST30"):
     end_date = available_dates[-1].strftime('%Y-%m-%d')
     return market_data, start_date, end_date
 
-def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=None, initial_cash=None, prompt_version=None):
+def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=None, initial_cash=None, trading_approach=None):
     # Apply configuration overrides
     if initial_cash is not None:
         config.INITIAL_CASH = initial_cash
@@ -62,8 +62,8 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
             "model_name": alias
         }
 
-    active_prompt_version = prompt_version or config.PROMPT_VERSION
-    log.info(f"=== Running backtest on {exchange} for model: {alias} (Prompt: {active_prompt_version}) ===")
+    active_trading_approach = trading_approach or getattr(config, 'PROMPT_VERSION', 'Balanced')
+    log.info(f"=== Running backtest on {exchange} for model: {alias} (Approach: {active_trading_approach}) ===")
 
     try:
         market_data, default_start_date, default_end_date = _load_market_data_with_dates(exchange=exchange)
@@ -82,7 +82,8 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
         end_date=run_end,
         model_config=model_config,
         return_details=True,
-        exchange=exchange
+        exchange=exchange,
+        trading_approach=active_trading_approach
     )
 
     if not res or not res.get("history"):
@@ -152,7 +153,8 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
         "model_id": model_config['model_name'],
         "model_name": model_config['model_name'],
         "alias": alias,
-        "prompt_version": active_prompt_version,
+        "trading_approach": active_trading_approach,
+        "prompt_version": active_trading_approach,  # Write both keys for backward-compatibility with UI columns
         "exchange": exchange,
         "date_range": [run_start, run_end],
         "initial_capital": config.INITIAL_CASH,
@@ -168,7 +170,7 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
     }
 
     # Save timestamped run file
-    out_filename = f"{exchange}_{_safe_filename(alias)}_{active_prompt_version}_{start_date_str}_{end_date_str}.json"
+    out_filename = f"{exchange}_{_safe_filename(alias)}_{active_trading_approach}_{start_date_str}_{end_date_str}.json"
     out_path = os.path.join(exchange_results_dir, out_filename)
     with open(out_path, "w") as f:
         json.dump(result, f, indent=2)
@@ -248,10 +250,10 @@ def plot_all(exchange="BIST30"):
     plot_performance(model_results, baseline_history)
     log.info("Plot saved to logs/performance_plot.png")
 
-def run_all_models(exchange="BIST30"):
+def run_all_models(exchange="BIST30", trading_approach="Balanced"):
     """Runs all models sequentially (original behavior)."""
     for idx in range(len(config.OPENROUTER_MODELS)):
-        run_single_model(str(idx), exchange=exchange)
+        run_single_model(str(idx), exchange=exchange, trading_approach=trading_approach)
     plot_all(exchange=exchange)
 
 if __name__ == "__main__":
@@ -266,8 +268,8 @@ if __name__ == "__main__":
                         help="Custom end date for simulation (YYYY-MM-DD).")
     parser.add_argument("--cash", type=float,
                         help="Custom initial cash amount for simulation.")
-    parser.add_argument("--prompt-version", type=str,
-                        help="Override prompt version string. Default: keep config.py value.")
+    parser.add_argument("--trading-approach", type=str, default="Balanced",
+                        help="Trading approach: Balanced (default), Aggressive, or Conservative.")
     parser.add_argument("--plot", action="store_true",
                         help="Load all saved results and generate the combined plot.")
     args = parser.parse_args()
@@ -281,7 +283,7 @@ if __name__ == "__main__":
             start_date=args.start_date,
             end_date=args.end_date,
             initial_cash=args.cash,
-            prompt_version=args.prompt_version
+            trading_approach=args.trading_approach
         )
     else:
-        run_all_models(exchange=args.exchange)
+        run_all_models(exchange=args.exchange, trading_approach=args.trading_approach)

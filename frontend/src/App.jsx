@@ -63,6 +63,7 @@ export default function App() {
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [initialCashInput, setInitialCashInput] = useState(100000);
+  const [tradingApproach, setTradingApproach] = useState('Balanced');
 
   // Global Runner / WS States
   const [runnerStatus, setRunnerStatus] = useState('idle'); // "idle", "running", "finished", "failed"
@@ -159,7 +160,7 @@ export default function App() {
   // Auto-scroll log console
   useEffect(() => {
     if (logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      logsEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
   }, [runnerLogs]);
 
@@ -313,7 +314,8 @@ export default function App() {
           exchange: exchange,
           start_date: startDateInput || null,
           end_date: endDateInput || null,
-          cash: parseFloat(initialCashInput) || 1000000
+          cash: parseFloat(initialCashInput) || 1000000,
+          trading_approach: tradingApproach
         })
       });
 
@@ -1284,6 +1286,21 @@ export default function App() {
                         </select>
                       </div>
 
+                      {/* Trading Approach Selector */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">Trading Approach</label>
+                        <select
+                          value={tradingApproach}
+                          onChange={(e) => setTradingApproach(e.target.value)}
+                          disabled={runnerStatus === 'running'}
+                          className="w-full bg-slate-950 border border-border rounded-lg text-xs font-bold text-slate-200 px-4 py-2.5 outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="Balanced">Balanced</option>
+                          <option value="Aggressive">Aggressive</option>
+                          <option value="Conservative">Conservative</option>
+                        </select>
+                      </div>
+
                       {/* Date ranges */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -1386,7 +1403,7 @@ export default function App() {
                         </div>
                       ) : (
                         runnerLogs.map((logLine, idx) => (
-                          <div key={idx} className="whitespace-pre-wrap leading-relaxed truncate">
+                          <div key={idx} className="whitespace-pre-wrap leading-relaxed break-words">
                             {logLine}
                           </div>
                         ))

@@ -4,7 +4,7 @@ import json
 import asyncio
 import time
 import re
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +38,7 @@ class RunParams(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     cash: Optional[float] = None
+    trading_approach: Optional[Literal["Balanced", "Aggressive", "Conservative"]] = "Balanced"
 
 
 class BacktestManager:
@@ -180,15 +181,22 @@ async def run_backtest_subprocess(params: RunParams):
         cmd.extend(["--end-date", params.end_date])
     if params.cash:
         cmd.extend(["--cash", str(params.cash)])
+    if params.trading_approach:
+        cmd.extend(["--trading-approach", params.trading_approach])
 
     log.info(f"Spawning backtest process: {' '.join(cmd)}")
 
     try:
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
-            cwd=PROJECT_ROOT
+            cwd=PROJECT_ROOT,
+            env=env
         )
         manager.active_subprocess = proc
 
@@ -311,7 +319,9 @@ def get_backtest_history(
                     "trades_count": len(r.get("trades", [])),
                     "created_at": stat.st_mtime,
                     "exchange": r.get("exchange"),
-                    "initial_capital": r.get("initial_capital")
+                    "initial_capital": r.get("initial_capital"),
+                    "trading_approach": r.get("trading_approach") or r.get("prompt_version") or "v1",
+                    "prompt_version": r.get("trading_approach") or r.get("prompt_version") or "v1"
                 })
         except Exception as e:
             log.warning(f"Error parsing history file {fname}: {e}")
