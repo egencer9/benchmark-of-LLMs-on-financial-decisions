@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import google.generativeai as genai
+from google import genai
 import requests
 import json
 import time
@@ -13,8 +13,8 @@ log.info(f"LLM provider configured: {config.LLM_PROVIDER.upper()}")
 
 clients = {}
 if config.LLM_PROVIDER == 'gemini' and config.GEMINI_API_KEY:
-    genai.configure(api_key=config.GEMINI_API_KEY)
-    clients['gemini'] = genai.GenerativeModel('gemini-2.5-flash-lite')
+    _gemini_client = genai.Client(api_key=config.GEMINI_API_KEY)
+    clients['gemini'] = _gemini_client
     log.info("Gemini client initialized.")
 elif config.LLM_PROVIDER == 'openai' and config.OPENAI_API_KEY:
     clients['openai'] = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -35,14 +35,18 @@ class LLMProvider(ABC):
         pass
 
 class GeminiProvider(LLMProvider):
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, client):
+        self.client = client
 
     def get_decision(self, prompt: str, model_config: dict = None) -> str:
-        if not self.model:
-            raise RuntimeError("Gemini model client is not initialized.")
+        if not self.client:
+            raise RuntimeError("Gemini client is not initialized.")
         def api_call():
-            return self.model.generate_content(prompt).text
+            response = self.client.models.generate_content(
+                model='gemini-2.5-flash-lite-preview-06-17',
+                contents=prompt
+            )
+            return response.text
         return _api_call_with_retry(api_call, 'gemini')
 
 class OpenAIProvider(LLMProvider):
@@ -131,8 +135,8 @@ def get_llm_decision(prompt, available_tickers, model_config=None):
         provider = LLMProviderFactory.get_provider(provider_name)
         result = provider.get_decision(prompt, model_config)
 
-        log.info("Sleeping for 10 seconds to respect API rate limits...")
-        time.sleep(10)
+        log.info("Sleeping for 3 seconds to respect API rate limits...")
+        time.sleep(3)
 
         return result
 
@@ -154,7 +158,7 @@ def _api_call_with_retry(api_function, provider_name):
             err_msg = str(e).lower()
             if "429" in err_msg or "rate limit" in err_msg or "too many requests" in err_msg:
                 # Exponential backoff: 15s, 30s, 60s, 120s, 240s + jitter
-                wait_time = (2 ** attempt) * 15 + random.uniform(2, 6)
+                wait_time = (2 ** attempt) * 8 + random.uniform(1, 3)
                 log.warning(
                     f"Rate limit exceeded for {provider_name} (Attempt {attempt + 1}/{max_retries}). "
                     f"Retrying in {wait_time:.1f} seconds..."

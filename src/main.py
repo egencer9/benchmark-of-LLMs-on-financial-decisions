@@ -3,6 +3,7 @@ import os
 import argparse
 import json
 from datetime import datetime
+import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -129,7 +130,7 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
     downside_std = downside_returns.std()
     sortino = 0.0
     if downside_std > 0:
-        sortino = (model_returns.mean() * 252) / (downside_std * np.sqrt(252)) if 'np' in globals() else (model_returns.mean() * 252) / (downside_std * 15.8745) # 15.8745 is sqrt(252)
+        sortino = (model_returns.mean() * 252) / (downside_std * np.sqrt(252))
         
     metrics = {
         "Cumulative Return": f"{tot_ret:.2%}",

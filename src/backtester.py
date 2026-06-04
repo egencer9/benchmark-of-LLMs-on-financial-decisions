@@ -256,6 +256,7 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
 
     index_ticker = "^NDX" if exchange == "NASDAQ" else "XU030.IS"
     yesterday_close = 0.0
+    today_close = 0.0  # Initialized here to prevent NameError if simulation_dates is empty
 
     is_intraday = getattr(config, 'INTRADAY_ONLY', False)
 

@@ -1,9 +1,11 @@
 pandas
+numpy
+matplotlib
 yfinance
 newsapi-python
 python-dotenv
 loguru
-google-generativeai
+google-genai
 openai
 PyYAML
 requests
