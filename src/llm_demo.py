@@ -22,7 +22,7 @@ def run_demo():
 
     # Use the same function as the backtester to get the LLM decision.
     # This ensures we are testing the exact same logic.
-    response = get_llm_decision(test_prompt)
+    response = get_llm_decision(test_prompt, [])
 
     if response:
         log.info("Received response from LLM:")

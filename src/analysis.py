@@ -21,12 +21,14 @@ def calculate_metrics(portfolio_history, risk_free_rate=0.02):
     rolling_max = pd.Series(portfolio_history).cummax()
     daily_drawdown = pd.Series(portfolio_history) / rolling_max - 1.0
     max_drawdown = daily_drawdown.min()
-    downside_returns = returns[returns < 0]
+    downside_returns = returns.copy()
+    downside_returns[downside_returns > 0] = 0
     downside_std = downside_returns.std()
     annualized_return = returns.mean() * 252
+    annualized_downside_std = downside_std * np.sqrt(252)
 
-    if downside_std > 0:
-        sortino_ratio = (annualized_return - (risk_free_rate / 252)) / downside_std * np.sqrt(252)
+    if annualized_downside_std > 0:
+        sortino_ratio = (annualized_return - risk_free_rate) / annualized_downside_std
     else:
         sortino_ratio = np.inf
         log.warning("No downside deviation; Sortino Ratio is infinite.")
@@ -39,37 +41,35 @@ def calculate_metrics(portfolio_history, risk_free_rate=0.02):
     log.info(f"Metrics calculated: {metrics}")
     return metrics
 
-def plot_performance(portfolio_data, baseline_history):
+def plot_performance(model_results, baseline_history):
     """
-    Plots the portfolio value against a baseline. 
-    portfolio_data can be a list (single run) or a dict (multi-model run).
+    Plots multiple LLM model portfolios against a buy-and-hold baseline.
+
+    model_results: list of dicts — [{"alias": str, "history": list}, ...]
+    baseline_history: list of portfolio values for buy-and-hold
     """
-    if not portfolio_data:
-        log.warning("Cannot plot empty portfolio data.")
+    if not model_results:
+        log.warning("Cannot plot: no model results provided.")
         return
 
-    log.info("Plotting portfolio performance against baseline.")
-    plt.figure(figsize=(14, 7))
-    
-    # Handle both single list and dictionary of lists
-    if isinstance(portfolio_data, list):
-        plt.plot(portfolio_data, label="LLM Agent Portfolio", color='blue', linewidth=2)
-    elif isinstance(portfolio_data, dict):
-        # Multi-model support
-        # Define a color palette to ensure distinction
-        colors = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#8c564b'] # Blue, Green, Red, Purple, Brown
-        
-        for i, (model_name, history) in enumerate(portfolio_data.items()):
-            # Cycle through colors
-            color = colors[i % len(colors)]
-            plt.plot(history, label=model_name, color=color, linewidth=2)
-            
-    if baseline_history:
-        plt.plot(baseline_history, label="Buy and Hold Baseline", linestyle='--', color='orange', linewidth=2)
+    log.info("Plotting portfolio performance for all models.")
+    colors = ['blue', 'green', 'red', 'purple', 'brown', 'pink', 'gray', 'olive']
 
-    plt.title("Portfolio Performance vs. Buy and Hold")
+    plt.figure(figsize=(14, 7))
+
+    for i, result in enumerate(model_results):
+        alias = result["alias"]
+        history = result["history"]
+        if history:
+            color = colors[i % len(colors)]
+            plt.plot(history, label=alias, color=color)
+
+    if baseline_history:
+        plt.plot(baseline_history, label="Buy & Hold Baseline", linestyle='--', color='orange', linewidth=2)
+
+    plt.title("LLM Benchmark — Portfolio Performance vs. Buy & Hold (BIST30)")
     plt.xlabel("Trading Days")
-    plt.ylabel("Portfolio Value ($)")
+    plt.ylabel("Portfolio Value (₺ TRY)")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
@@ -107,7 +107,7 @@ def create_buy_and_hold_baseline(initial_investment, tickers, market_data, simul
                 shares = investment_per_ticker / price
                 shares_to_buy[ticker] = shares
                 cash_spent += (shares * price)
-                log.debug(f"Baseline: Buying {shares:.2f} shares of {ticker} at ${price:.2f}")
+                log.debug(f"Baseline: Buying {shares:.2f} shares of {ticker} at ₺{price:.2f}")
             else:
                 log.warning(f"Initial price for {ticker} is zero. Cannot buy shares for baseline.")
         else:

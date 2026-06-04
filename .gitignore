@@ -135,3 +135,5 @@ cython_debug/
 
 # Data files
 data/
+/logs/
+

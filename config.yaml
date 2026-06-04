@@ -4,22 +4,29 @@
 # The program will use the FIRST model in this list.
 
 openrouter_models:
-  # Option 1: Xiaomi Mimo V2 Flash (Free) - Tested and Working!
-  - alias: "Xiaomi Mimo V2 Flash"
-    model_name: "xiaomi/mimo-v2-flash:free"
-    active: true
-
-  # Option 2: NVIDIA Nemotron 3 Nano 30B (Free) - New Addition
-  - alias: "NVIDIA Nemotron 3 Nano"
+  - alias: "NVIDIA Nemotron Nano 30B"
     model_name: "nvidia/nemotron-3-nano-30b-a3b:free"
-    active: true
 
-  # Option 4: Google Gemma 2 9B (Free)
-  - alias: "Gemma 2 9B Free"
-    model_name: "google/gemma-2-9b-it:free"
-    active: false
+  - alias: "NVIDIA Nemotron Super 120B"
+    model_name: "nvidia/nemotron-3-super-120b-a12b:free"
 
-  # Option 3: Meta Llama 3.1 8B Instruct (Free)
-  - alias: "Llama 3.1 8B Free"
-    model_name: "meta-llama/llama-3-8b-instruct:free"
-    active: false
+  - alias: "OpenAI GPT OSS 120B"
+    model_name: "openai/gpt-oss-120b:free"
+
+  - alias: "Google Gemma 3 27B"
+    model_name: "google/gemma-3-27b-it:free"
+
+  - alias: "Poolside Laguna M.1"
+    model_name: "poolside/laguna-m.1:free"
+
+  - alias: "Minimax M2.5"
+    model_name: "minimax/minimax-m2.5:free"
+
+  - alias: "Moonshot Kimi K2.6"
+    model_name: "moonshotai/kimi-k2.6:free"
+
+  - alias: "Meta Llama 3.3 70B Instruct"
+    model_name: "meta-llama/llama-3.3-70b-instruct:free"
+
+  - alias: "Liquid LFM 2.5 1.2B Thinking"
+    model_name: "liquid/lfm-2.5-1.2b-thinking:free"

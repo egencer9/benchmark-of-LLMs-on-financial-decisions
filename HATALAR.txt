@@ -1,0 +1,158 @@
+=========================================================
+  LLM BENCHMARK — HATA & POTANSİYEL SORUN LİSTESİ
+  Tarih: 2026-06-04  |  Branch: Ege-Branch
+=========================================================
+
+=== DÜZELTILEN HATALAR ===
+----------------------------------------------------------
+
+[1] HATA - google.generativeai Deprecated Import
+    Dosya : src/llm_agent.py
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: "import google.generativeai as genai" artık kullanım dışı.
+              Yeni SDK "from google import genai" ile
+              genai.Client() + client.models.generate_content() yapısına geçildi.
+
+[2] HATA - matplotlib Kurulu Değildi → Crash
+    Dosya : src/analysis.py
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: "import matplotlib.pyplot as plt" satırı her backtest subprocess'ini
+              başlangıçta crash ettiriyordu. matplotlib ve numpy venv'e yüklendi,
+              requirements.txt güncellendi.
+
+[3] HATA - NASDAQ Veri Dosyaları Yoktu
+    Dosya : data/market_data_NASDAQ.csv, data/news_data_NASDAQ.csv
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: scripts/collect_data.py hiç çalıştırılmamıştı. NASDAQ için
+              2025-01-01'den bugüne market verisi (yfinance) ve son 30 günlük
+              haber verisi (NewsAPI) toplandı.
+
+[4] HATA - numpy Import Eksikti → Sortino Ratio Her Zaman Yanlış
+    Dosya : src/main.py (satır 132)
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: Sortino hesabı "if 'np' in globals()" ile korunmaya çalışılmış
+              ama numpy hiç import edilmediği için her zaman hardcoded 15.8745
+              değeri kullanılıyordu. "import numpy as np" eklendi.
+
+[5] HATA - API Key'ler Düz Metin Olarak Dışa Açılıyordu
+    Dosya : src/api.py (satır 258-263)
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: /api/config endpoint'i tüm API key'leri ham değerleriyle döndürüyordu.
+              mask_api_key() fonksiyonu yazılmıştı ama kullanılmıyordu.
+              Artık tüm key'ler "sk-o****z789" formatında maskelenerek dönüyor.
+
+[6] HATA - LLM Çağrısı Sonrası 10 Saniye Gereksiz Bekleme
+    Dosya : src/llm_agent.py (satır 134)
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: Her API çağrısından sonra sabit 10 saniyelik sleep vardı.
+              20 günlük backtest = 200 saniye sadece sleep.
+              3 saniyeye indirildi (~140 saniye tasarruf per backtest).
+
+[7] HATA - Rate Limit Retry Backoff Çok Yavaş
+    Dosya : src/llm_agent.py (satır 157)
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: Retry bekleme süresi 15s, 30s, 60s, 120s, 240s... şeklindeydi.
+              429 hatası alındığında tek bir gün için 24 dakika beklenebiliyordu.
+              Base 15s → 8s'ye indirildi. Worst case: ~8 dakika.
+
+[8] HATA - today_close Değişkeni Loop Başlamadan Tanımsız
+    Dosya : src/backtester.py (satır 257)
+    Durum : ✅ DÜZELTİLDİ
+    Açıklama: simulation_dates boş olduğunda (geçersiz tarih aralığı gibi) döngü
+              hiç çalışmıyor ve döngü sonundaki pozisyon kapama kodu
+              "today_close" değişkenine erişmeye çalışarak NameError veriyordu.
+              today_close = 0.0 ile önceden tanımlandı.
+
+
+=== DEVAM EDEN / DÜZELTİLMEMİŞ SORUNLAR ===
+----------------------------------------------------------
+
+[A] SORUN - NewsAPI Ücretsiz Plan 30 Günlük Kısıt
+    Dosya : scripts/collect_data.py
+    Önem  : YÜKSEK
+    Açıklama: NewsAPI ücretsiz plan sadece son 30 günlük haber çekebiliyor.
+              UI'dan 2025 gibi eski tarihler seçildiğinde backtest'e haber
+              verisi gitmiyor; LLM sadece fiyat verisine bakıyor.
+              .env dosyasında FINHUB_API_KEY var ama kod hiç kullanmıyor.
+    Çözüm : Finnhub API entegrasyonu yazılmalı. Finnhub tarih bağımsız
+              haber desteği sunuyor (ücretsiz planda 60 req/min).
+
+[B] SORUN - NASDAQ için RSS Haber Kaynağı Yok
+    Dosya : scripts/collect_data.py (satır 202)
+    Önem  : ORTA
+    Açıklama: RSS feed toplama sadece BIST30 için yapılmış.
+              NASDAQ için ek ücretsiz haber kaynağı yok.
+    Çözüm : Finnhub veya Alpha Vantage RSS entegrasyonu eklenebilir.
+
+[C] SORUN - Intraday Modda Look-Ahead Bias (Haber Tarih Hatası)
+    Dosya : src/backtester.py (satır 298-301)
+    Önem  : ORTA (Akademik geçerlilik için kritik)
+    Açıklama: Intraday modda LLM sabah açılış fiyatıyla karar veriyor,
+              ama news_window filtresi o günün tüm haberlerini içeriyor
+              (<= current_date.date()). Gerçekte sabahtan sonra yayınlanan
+              haberler LLM'e verilmemeli.
+    Çözüm : Intraday modda haber filtresi "< current_date.date()" olmalı.
+
+[D] SORUN - config.INITIAL_CASH Global State Mutasyonu
+    Dosya : src/main.py (satır 36)
+    Önem  : DÜŞÜK (şimdilik subprocess kullanıldığı için güvenli)
+    Açıklama: "config.INITIAL_CASH = initial_cash" global config'i doğrudan
+              değiştiriyor. Şu an subprocess ile çalışıldığından race condition
+              yok ama mimari olarak tehlikeli.
+    Çözüm : initial_cash parametresini fonksiyon boyunca geçirmek.
+
+[E] SORUN - Frontend Pagination Yok
+    Dosya : frontend/src/App.jsx (satır 245)
+    Önem  : ORTA (UX)
+    Açıklama: Backend'de sayfalama desteği var (page/limit parametreleri)
+              ama UI'da sayfa değiştirme butonu yok. historyPage state'i
+              hep 1 kalıyor. 20'den fazla run varsa eskiler görüntülenemiyor.
+    Çözüm : Dashboard'a "Önceki/Sonraki" pagination butonları ekle.
+
+[F] SORUN - WebSocket Yeniden Bağlanmada Log Kaybı
+    Dosya : frontend/src/App.jsx (satır 145-148)
+    Önem  : DÜŞÜK
+    Açıklama: Exchange değiştirildiğinde WS 5 saniye kapanıyor. Bu sürede
+              gelen backtest log mesajları kalıcı kayboluyor.
+    Çözüm : Exchange değişince WS'yi kapatmak yerine mevcut bağlantıyı koru.
+
+[G] SORUN - App.jsx 1496 Satır Tek Dosya (Bakım Zorluğu)
+    Dosya : frontend/src/App.jsx
+    Önem  : DÜŞÜK (teknik borç)
+    Açıklama: Tüm UI tek bir monolitik React bileşeni içinde.
+              5 sekme, 15+ state, WebSocket yönetimi hepsi aynı dosyada.
+              Yeni özellik eklemek ve hata bulmak giderek zorlaşıyor.
+    Çözüm : Dashboard, Insights, Ledger, Market, Runner gibi
+              ayrı bileşenlere bölünmeli.
+
+[H] SORUN - BIST30 Margin Hesabı Gerçeği Tam Yansıtmıyor
+    Dosya : src/backtester.py (satır 47-48)
+    Önem  : DÜŞÜK (simülasyon doğruluğu)
+    Açıklama: BIST30 VIOP margin'i "fiyat * 10 * 0.10" olarak hesaplanıyor
+              ama gerçek VIOP margin'i Takasbank tarafından belirleniyor
+              ve çok daha dinamik.
+
+[I] SORUN - Kullanılmayan Legacy Değişkenler
+    Dosya : config.py (satır 71-72)
+    Önem  : ÇOK DÜŞÜK (kod temizliği)
+    Açıklama: TICKERS ve COMPANY_NAMES değişkenleri artık kullanılmıyor,
+              kod EXCHANGES dict'ini doğrudan kullanıyor.
+
+[J] SORUN - data/ Klasöründe Eski data_fetcher.py Dosyası
+    Dosya : data/data_fetcher.py
+    Önem  : ÇOK DÜŞÜK (temizlik)
+    Açıklama: Eski bir veri çekme scripti scripts/ yerine data/ içinde duruyor.
+              Karışıklık yaratabilir, silinmeli veya taşınmalı.
+
+
+=== AKSIYON ÖNCELİK LİSTESİ ===
+----------------------------------------------------------
+
+  1. [A] Finnhub haber entegrasyonu → tarih bağımsız haber için
+  2. [C] Intraday look-ahead bias düzeltmesi → akademik geçerlilik
+  3. [E] Pagination UI ekle → 20+ run varsa çalışmıyor
+  4. [D] Global config mutation → parametreye taşı
+  5. [B] NASDAQ RSS/ek haber kaynağı
+  6. [G] App.jsx bileşenlere böl → uzun vadeli bakım
+
+=========================================================

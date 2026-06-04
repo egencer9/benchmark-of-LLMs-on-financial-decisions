@@ -1,0 +1,11 @@
+
+LLM BENCHMARK - HOW 2 RUN 4 DUMB NIGGAS
+
+1. Terminalden api'yi başlat.
+   python src/api.py
+
+2. Farkli bir terminalden frontend'i başlat.
+   cd frontend
+   npm run dev
+
+3. http://localhost:5173 adresine git
