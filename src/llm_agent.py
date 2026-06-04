@@ -124,12 +124,12 @@ class LLMProviderFactory:
 def get_llm_decision(prompt, available_tickers, model_config=None):
     """
     Gets a trading decision from the configured LLM provider.
+    Returns None on total failure (backtester will treat as HOLD and continue).
     """
     provider_name = config.LLM_PROVIDER
     if provider_name not in clients:
-        msg = f"LLM Provider '{provider_name}' is not initialized. Please verify your API key or connection."
-        log.error(msg)
-        raise RuntimeError(msg)
+        log.error(f"LLM Provider '{provider_name}' is not initialized. Check your API key.")
+        return None  # Backtester will default to HOLD
 
     try:
         provider = LLMProviderFactory.get_provider(provider_name)
@@ -141,11 +141,9 @@ def get_llm_decision(prompt, available_tickers, model_config=None):
         return result
 
     except Exception as e:
-        log.error(f"An unexpected error occurred during API call for {provider_name}: {e}", exc_info=True)
-        raise RuntimeError(
-            f"Failed to communicate with LLM provider '{provider_name}': {e}. "
-            f"Please verify your API key, check your internet connection/VPN, and retry the simulation."
-        )
+        # Log but do NOT crash the backtest — return None so the day is treated as HOLD
+        log.error(f"[LLM FAILURE] Provider '{provider_name}' failed entirely: {e}. Defaulting to HOLD for this day.", exc_info=True)
+        return None
 
 # --- Provider-Specific Functions with Retry Logic ---
 def _api_call_with_retry(api_function, provider_name):
@@ -157,17 +155,19 @@ def _api_call_with_retry(api_function, provider_name):
         except Exception as e:
             err_msg = str(e).lower()
             if "429" in err_msg or "rate limit" in err_msg or "too many requests" in err_msg:
-                # Exponential backoff: 15s, 30s, 60s, 120s, 240s + jitter
-                wait_time = (2 ** attempt) * 8 + random.uniform(1, 3)
+                # Exponential backoff: 9s, 18s, 36s, 72s, 144s, 288s + jitter
+                wait_time = (2 ** attempt) * 9 + random.uniform(1, 5)
                 log.warning(
-                    f"Rate limit exceeded for {provider_name} (Attempt {attempt + 1}/{max_retries}). "
-                    f"Retrying in {wait_time:.1f} seconds..."
+                    f"[Rate Limit] {provider_name} (Attempt {attempt + 1}/{max_retries}). "
+                    f"Waiting {wait_time:.1f}s before retry..."
                 )
                 time.sleep(wait_time)
             else:
-                log.error(f"Error calling {provider_name} API: {e}", exc_info=True)
-                raise e
-    raise Exception(f"API call to {provider_name} failed after {max_retries} retries.")
+                log.error(f"[API Error] {provider_name}: {e}", exc_info=True)
+                # Non-rate-limit errors: don't retry, return None so backtest can HOLD and continue
+                return None
+    log.error(f"[API Error] {provider_name} failed after {max_retries} retries (rate limit). Returning None → HOLD.")
+    return None
 
 # --- Sanity and Parsing Functions ---
 def parse_llm_response(response_str):

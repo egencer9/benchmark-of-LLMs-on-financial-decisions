@@ -348,11 +348,16 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
             log.info(decision_str)
             log.info("=========================================================================\n")
 
-            # Parse decision
+            # Parse decision — if decision_str is None (API failed), default to HOLD
             from src.llm_agent import parse_llm_response
-            decision_data = parse_llm_response(decision_str)
+            if decision_str is None:
+                log.warning(f"[{date_str}] LLM returned None (API failure). Defaulting to HOLD for this day.")
+                decision_data = {"decision": "HOLD", "confidence": 50, "reasoning": "LLM API unavailable — defaulting to HOLD."}
+            else:
+                decision_data = parse_llm_response(decision_str)
             log.info(f"AI Parsed Decision: {decision_data.get('decision')} | Confidence: {decision_data.get('confidence')}%")
             log.info(f"AI Sentiment/Reasoning: {decision_data.get('reasoning')}")
+
 
         # Execute Trade
         if not is_intraday:

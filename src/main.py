@@ -90,8 +90,10 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
     if not res or not res.get("history"):
         log.error(f"No results for {alias}.")
         raise RuntimeError(
-            f"Backtest failed to execute or return history for model '{alias}'. "
-            f"Check if LLM API rate limits were hit, check your VPN/connection, and retry."
+            f"Backtest returned no history for model '{alias}'. "
+            f"This likely means no trading days were found in the selected date range "
+            f"(start: {run_start}, end: {run_end}). "
+            f"Please pick a date range with actual market data."
         )
 
     history = res["history"]
