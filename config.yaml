@@ -4,29 +4,18 @@
 # The program will use the FIRST model in this list.
 
 openrouter_models:
-  - alias: "NVIDIA Nemotron Nano 30B"
-    model_name: "nvidia/nemotron-3-nano-30b-a3b:free"
+  - alias: "Meta Llama 3 70B Instruct"
+    model_name: "meta-llama/llama-3-70b-instruct"
 
-  - alias: "NVIDIA Nemotron Super 120B"
-    model_name: "nvidia/nemotron-3-super-120b-a12b:free"
+  - alias: "Google Gemini 1.5 Flash"
+    model_name: "google/gemini-1.5-flash"
 
-  - alias: "OpenAI GPT OSS 120B"
-    model_name: "openai/gpt-oss-120b:free"
+  - alias: "Anthropic Claude 3.5 Haiku"
+    model_name: "anthropic/claude-3.5-haiku"
 
-  - alias: "Google Gemma 3 27B"
-    model_name: "google/gemma-3-27b-it:free"
+  - alias: "OpenAI GPT-4o Mini"
+    model_name: "openai/gpt-4o-mini"
 
-  - alias: "Poolside Laguna M.1"
-    model_name: "poolside/laguna-m.1:free"
+  - alias: "NVIDIA Nemotron 4 340B Instruct"
+    model_name: "nvidia/nemotron-4-340b-instruct"
 
-  - alias: "Minimax M2.5"
-    model_name: "minimax/minimax-m2.5:free"
-
-  - alias: "Moonshot Kimi K2.6"
-    model_name: "moonshotai/kimi-k2.6:free"
-
-  - alias: "Meta Llama 3.3 70B Instruct"
-    model_name: "meta-llama/llama-3.3-70b-instruct:free"
-
-  - alias: "Liquid LFM 2.5 1.2B Thinking"
-    model_name: "liquid/lfm-2.5-1.2b-thinking:free"
