@@ -392,6 +392,17 @@ def get_market_data(exchange: str):
     return get_market_data_cached(exchange)
 
 
+@app.get("/api/cache-status")
+def get_cache_status():
+    """Returns the date ranges currently cached for each exchange (parquet cache)."""
+    try:
+        from src.data_cache import cache_status
+        return cache_status()
+    except Exception as e:
+        log.warning(f"Cache status error: {e}")
+        return {"status": "unavailable", "error": str(e)}
+
+
 @app.get("/api/news")
 def get_news(exchange: str, limit: int = 50):
     """Returns latest news articles for the exchange."""

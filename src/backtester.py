@@ -230,15 +230,16 @@ class Portfolio:
 
 def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30", trading_approach="Balanced"):
     """Main backtesting loop for futures index trading."""
+    # Cache üzerinden sadece istenen aralığı yükle (yoksa otomatik çekilir)
     try:
-        log.info(f"Loading market data for exchange '{exchange}' backtest...")
-        market_data = load_market_data(exchange=exchange)
+        log.info(f"Loading market data for exchange '{exchange}' backtest (cache-backed)...")
+        market_data = load_market_data(exchange=exchange, start_date=start_date, end_date=end_date)
     except FileNotFoundError:
         log.error(f"Market data for exchange '{exchange}' not found. Please run collection first.")
         return []
 
     try:
-        news_data = load_news_data(exchange=exchange)
+        news_data = load_news_data(exchange=exchange, start_date=start_date, end_date=end_date)
     except FileNotFoundError:
         log.warning(f"News data for exchange '{exchange}' not found — proceeding without news (LLM will rely on price action only).")
         news_data = pd.DataFrame(columns=['ticker', 'publishedAt', 'title', 'description', 'content'])

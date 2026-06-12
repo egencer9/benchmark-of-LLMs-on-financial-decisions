@@ -20,8 +20,10 @@ import {
   X,
   Layers,
   Sun,
-  Moon
+  Moon,
+  Database
 } from 'lucide-react';
+
 import {
   ResponsiveContainer,
   AreaChart,
@@ -92,6 +94,11 @@ export default function App() {
   const [loadingCompare, setLoadingCompare] = useState(false);
   const [loadingNews, setLoadingNews] = useState(false);
   const [apiError, setApiError] = useState(null);
+
+  // Cache Status State
+  const [cacheStatus, setCacheStatus] = useState(null);
+  const [loadingCache, setLoadingCache] = useState(false);
+
 
   const wsRef = useRef(null);
   const logsEndRef = useRef(null);
@@ -180,11 +187,13 @@ export default function App() {
     fetchMarketData();
     fetchHistory();
     fetchNews();
+    fetchCacheStatus();
     setCompareData([]);
     setSelectedRunsForCompare([]);
     setSingleRunDetails(null);
     setSelectedHistoryFile('');
   }, [exchange]);
+
 
   // Handle run selection comparison fetches
   useEffect(() => {
@@ -251,6 +260,21 @@ export default function App() {
       console.error(err);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const fetchCacheStatus = async () => {
+    setLoadingCache(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/cache-status`);
+      if (!res.ok) throw new Error('Cache status unavailable.');
+      const data = await res.json();
+      setCacheStatus(data);
+    } catch (err) {
+      console.error('Cache status fetch failed:', err);
+      setCacheStatus(null);
+    } finally {
+      setLoadingCache(false);
     }
   };
 
@@ -1346,8 +1370,85 @@ export default function App() {
 
 
 
+                      {/* Cache Status Widget */}
+                      {(() => {
+                        const exchCache = cacheStatus?.[exchange];
+                        const mktMeta = exchCache?.market;
+                        const newsMeta = exchCache?.news;
+
+                        // Determine if selected dates are within cache
+                        const isCached = (meta, dateStr) => {
+                          if (!meta || !dateStr) return null;
+                          const d = new Date(dateStr);
+                          const s = new Date(meta.start);
+                          const e = new Date(meta.end);
+                          return d >= s && d <= e;
+                        };
+
+                        const startInCache = isCached(mktMeta, startDateInput);
+                        const endInCache = isCached(mktMeta, endDateInput);
+                        const fullyInCache = startInCache && endInCache;
+                        const partiallyInCache = (startInCache || endInCache) && !fullyInCache;
+
+                        return (
+                          <div className="bg-slate-950/60 border border-border rounded-lg p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                <Database className="h-3 w-3" />
+                                Data Cache Status
+                              </div>
+                              <button
+                                onClick={fetchCacheStatus}
+                                disabled={loadingCache}
+                                className="text-[9px] text-slate-600 hover:text-blue-400 transition-colors font-bold uppercase tracking-wider"
+                              >
+                                {loadingCache ? '...' : 'Refresh'}
+                              </button>
+                            </div>
+
+                            {!mktMeta ? (
+                              <div className="text-[10px] text-slate-600 font-mono">No cache found for {exchange}</div>
+                            ) : (
+                              <div className="space-y-1.5 font-mono">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[9px] text-slate-600 uppercase">Market</span>
+                                  <span className="text-[9px] text-slate-500">{mktMeta.start} → {mktMeta.end}</span>
+                                </div>
+                                {newsMeta && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9px] text-slate-600 uppercase">News</span>
+                                    <span className="text-[9px] text-slate-500">{newsMeta.start} → {newsMeta.end}</span>
+                                  </div>
+                                )}
+                                {(startDateInput || endDateInput) && (
+                                  <div className={`mt-2 px-2 py-1.5 rounded text-[10px] font-bold flex items-center gap-1.5 ${
+                                    fullyInCache
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      : partiallyInCache
+                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                      : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                  }`}>
+                                    <span className="text-base leading-none">
+                                      {fullyInCache ? '✓' : partiallyInCache ? '~' : '↓'}
+                                    </span>
+                                    <span>
+                                      {fullyInCache
+                                        ? 'Fully cached — no download needed'
+                                        : partiallyInCache
+                                        ? 'Partial cache — missing dates will be fetched'
+                                        : 'Not cached — will download from yfinance'}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Trigger Buttons */}
                       {runnerStatus === 'running' ? (
+
                         <div className="space-y-2">
                           <button
                             onClick={cancelBacktest}

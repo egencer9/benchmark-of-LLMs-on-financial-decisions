@@ -68,6 +68,28 @@ def collect_market_data(exchange, start_date, end_date):
         df.to_csv(MARKET_DATA_PATH, index=False)
         log.info(f"BIST30 market data copied to default: {MARKET_DATA_PATH}")
 
+    # --- Cache'e de kaydet ---
+    try:
+        from src.data_cache import _ensure_cache_dir, _cache_path, _load_meta, _save_meta, _date_str, CACHE_DIR
+        _ensure_cache_dir()
+        cache_file = _cache_path("market", exchange)
+        existing = pd.read_parquet(cache_file) if os.path.exists(cache_file) else pd.DataFrame()
+        frames = [existing, df] if not existing.empty else [df]
+        combined = pd.concat(frames, ignore_index=True)
+        combined['Date'] = pd.to_datetime(combined['Date'])
+        combined.drop_duplicates(subset=['Date', 'ticker'], inplace=True)
+        combined.sort_values(['ticker', 'Date'], inplace=True)
+        combined.to_parquet(cache_file, index=False)
+        meta = _load_meta()
+        meta.setdefault(exchange, {})["market"] = {
+            "start": _date_str(combined['Date'].min()),
+            "end":   _date_str(combined['Date'].max()),
+        }
+        _save_meta(meta)
+        log.info(f"[Cache] Piyasa verisi cache'e de yazıldı: {cache_file}")
+    except Exception as cache_err:
+        log.warning(f"[Cache] Piyasa cache güncellenemedi (kritik değil): {cache_err}")
+
 def collect_news_data(exchange, start_date, end_date):
     """Fetches news articles based on the provided date range (fallback logic)."""
     tickers = config.EXCHANGES.get(exchange, {}).get("tickers", [])
@@ -247,19 +269,18 @@ def collect_all_news(exchange, start_date, end_date):
 
     # --- Merge & save ---
     if not frames:
-        log.warning(f"No news collected from any source for exchange {exchange}.")
-        # Write an empty structure so that loader does not crash
-        df = pd.DataFrame(columns=['ticker', 'publishedAt', 'title', 'description', 'content', 'source'])
-    else:
-        df = pd.concat(frames, ignore_index=True)
-        # Normalize to timezone-naive UTC so tz-aware and tz-naive can be compared
-        df['publishedAt'] = pd.to_datetime(df['publishedAt'], utc=True).dt.tz_localize(None)
-        df.drop_duplicates(subset=["ticker", "publishedAt", "title"], inplace=True)
-        df.sort_values("publishedAt", ascending=False, inplace=True)
+        log.warning(f"No news collected from any source for exchange {exchange}. Skipping file write to preserve existing data.")
+        return  # ← Mevcut CSV ve cache'e DOKUNMA
+
+    df = pd.concat(frames, ignore_index=True)
+    # Normalize to timezone-naive UTC so tz-aware and tz-naive can be compared
+    df['publishedAt'] = pd.to_datetime(df['publishedAt'], utc=True).dt.tz_localize(None)
+    df.drop_duplicates(subset=["ticker", "publishedAt", "title"], inplace=True)
+    df.sort_values("publishedAt", ascending=False, inplace=True)
 
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
-    
+
     out_path = os.path.join(DATA_DIR, f"news_data_{exchange}.csv")
     df.to_csv(out_path, index=False)
     log.info(f"Combined news for {exchange} saved correctly to: {out_path}")
@@ -268,6 +289,33 @@ def collect_all_news(exchange, start_date, end_date):
     if exchange == "BIST30":
         df.to_csv(NEWS_DATA_PATH, index=False)
         log.info(f"BIST30 news data copied to default: {NEWS_DATA_PATH}")
+
+    # --- Cache'e de kaydet ---
+    try:
+        from src.data_cache import _ensure_cache_dir, _cache_path, _load_meta, _save_meta, _date_str
+        _ensure_cache_dir()
+        cache_file = _cache_path("news", exchange)
+        existing = pd.read_parquet(cache_file) if os.path.exists(cache_file) else pd.DataFrame()
+        frames_to_merge = [existing, df] if not existing.empty else [df]
+        combined = pd.concat(frames_to_merge, ignore_index=True)
+        combined['publishedAt'] = pd.to_datetime(combined['publishedAt'])
+        if combined['publishedAt'].dt.tz is not None:
+            combined['publishedAt'] = combined['publishedAt'].dt.tz_localize(None)
+        combined.drop_duplicates(subset=['ticker', 'publishedAt', 'title'], inplace=True)
+        combined.sort_values('publishedAt', ascending=False, inplace=True)
+        combined.to_parquet(cache_file, index=False)
+        meta = _load_meta()
+        meta.setdefault(exchange, {})["news"] = {
+            "start": _date_str(combined['publishedAt'].min()),
+            "end":   _date_str(combined['publishedAt'].max()),
+        }
+        _save_meta(meta)
+        log.info(f"[Cache] Haber verisi cache'e de yazıldı: {cache_file}")
+    except Exception as cache_err:
+        log.warning(f"[Cache] Haber cache güncellenemedi (kritik değil): {cache_err}")
+
+
+
 
 if __name__ == "__main__":
     log.info("--- Starting Data Collection Script ---")
