@@ -1,9 +1,15 @@
 # Configuration for LLM models, especially for providers like OpenRouter.
 
 # A list of models to be used with the OpenRouter provider.
-# The program will use the FIRST model in this list.
+# Index 0 = default model used by the UI runner.
 
 openrouter_models:
+  - alias: "Llama 3.1 8B (Free)"
+    model_name: "meta-llama/llama-3.1-8b-instruct:free"
+
+  - alias: "Gemini 2.0 Flash Exp (Free)"
+    model_name: "google/gemini-2.0-flash-exp:free"
+
   - alias: "Meta Llama 3 70B Instruct"
     model_name: "meta-llama/llama-3-70b-instruct"
 
@@ -18,4 +24,3 @@ openrouter_models:
 
   - alias: "NVIDIA Nemotron 4 340B Instruct"
     model_name: "nvidia/nemotron-4-340b-instruct"
-

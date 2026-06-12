@@ -12,3 +12,4 @@ requests
 feedparser
 fastapi
 uvicorn
+pyarrow
