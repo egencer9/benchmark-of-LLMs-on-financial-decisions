@@ -387,9 +387,9 @@ export default function App() {
             return prev;
           }
         }
-        // Limit to 3 compare runs overlay
-        if (prev.length >= 3) {
-          alert("You can compare up to 3 runs at the same time.");
+        // Limit to 10 compare runs overlay
+        if (prev.length >= 10) {
+          alert("You can compare up to 10 runs at the same time.");
           return prev;
         }
         return [...prev, filename];
@@ -416,7 +416,7 @@ export default function App() {
     return data.filter(d => d.value > 0);
   };
 
-  const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6'];
+  const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16', '#eab308'];
 
   const isLight = theme === 'light';
   const chartGridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)';
