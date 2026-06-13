@@ -55,7 +55,29 @@ def _cache_path(data_type: str, exchange: str) -> str:
 
 
 def _parse_date(d) -> pd.Timestamp:
-    return pd.to_datetime(d)
+    """Parse a date string or Timestamp safely.
+
+    Enforces ISO-8601 (YYYY-MM-DD) format for string inputs to avoid
+    ambiguous locale-specific parsing (e.g. DD.MM.YYYY being mis-read
+    as YYYY-DD-MM which causes start > end and 0 rows returned).
+    """
+    if isinstance(d, (pd.Timestamp,)):
+        return d
+    s = str(d).strip()
+    # If already a valid ISO date, use yearfirst=True for safety
+    try:
+        return pd.to_datetime(s, format="%Y-%m-%d")
+    except ValueError:
+        pass
+    # Fallback: try other common formats explicitly
+    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%m/%d/%Y"):
+        try:
+            return pd.to_datetime(s, format=fmt)
+        except ValueError:
+            continue
+    # Last resort — let pandas guess, but warn
+    log.warning(f"[Cache] Ambiguous date string '{s}' — falling back to pd.to_datetime auto-parse. Prefer YYYY-MM-DD.")
+    return pd.to_datetime(s)
 
 
 def _date_str(d: pd.Timestamp) -> str:

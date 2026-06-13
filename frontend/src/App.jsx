@@ -1330,7 +1330,7 @@ export default function App() {
                         <div>
                           <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">Start Date</label>
                           <input
-                            type="text"
+                            type="date"
                             placeholder="YYYY-MM-DD"
                             value={startDateInput}
                             onChange={(e) => setStartDateInput(e.target.value)}
@@ -1341,7 +1341,7 @@ export default function App() {
                         <div>
                           <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">End Date</label>
                           <input
-                            type="text"
+                            type="date"
                             placeholder="YYYY-MM-DD"
                             value={endDateInput}
                             onChange={(e) => setEndDateInput(e.target.value)}
