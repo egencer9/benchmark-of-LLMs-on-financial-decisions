@@ -97,6 +97,8 @@ class OpenRouterProvider(LLMProvider):
                 },
                 data=json.dumps(payload)
             )
+            if response.status_code != 200:
+                log.error(f"OpenRouter API error response: {response.text}")
             response.raise_for_status()
             return response.json()['choices'][0]['message']['content']
         return _api_call_with_retry(api_call, alias)

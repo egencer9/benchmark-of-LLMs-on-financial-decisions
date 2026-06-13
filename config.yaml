@@ -7,8 +7,8 @@ openrouter_models:
   - alias: "Meta Llama 3 70B Instruct"
     model_name: "meta-llama/llama-3-70b-instruct"
 
-  - alias: "Google Gemini 1.5 Flash"
-    model_name: "google/gemini-1.5-flash"
+  - alias: "Google Gemini 2.5 Flash"
+    model_name: "google/gemini-2.5-flash"
 
   - alias: "Anthropic Claude 3.5 Haiku"
     model_name: "anthropic/claude-3.5-haiku"
@@ -16,6 +16,6 @@ openrouter_models:
   - alias: "OpenAI GPT-4o Mini"
     model_name: "openai/gpt-4o-mini"
 
-  - alias: "NVIDIA Nemotron 4 340B Instruct"
-    model_name: "nvidia/nemotron-4-340b-instruct"
+  - alias: "NVIDIA Nemotron 3 Nano 30B"
+    model_name: "nvidia/nemotron-3-nano-30b-a3b"
 
