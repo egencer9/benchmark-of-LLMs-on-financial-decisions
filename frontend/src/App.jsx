@@ -275,7 +275,9 @@ export default function App() {
           if (detail && detail.date) {
             point.date = detail.date;
           }
-          point[run.alias] = run.history[i] !== undefined ? run.history[i] : null;
+          const approach = run.trading_approach || run.prompt_version || '';
+          const chartKey = approach ? `${run.alias} (${approach})` : run.alias;
+          point[chartKey] = run.history[i] !== undefined ? run.history[i] : null;
         });
         chartPoints.push(point);
       }
@@ -363,11 +365,7 @@ export default function App() {
             return prev;
           }
         }
-        // Limit to 3 compare runs overlay
-        if (prev.length >= 3) {
-          alert("You can compare up to 3 runs at the same time.");
-          return prev;
-        }
+
         return [...prev, filename];
       }
     });
@@ -392,7 +390,12 @@ export default function App() {
     return data.filter(d => d.value > 0);
   };
 
-  const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6'];
+  const COLORS = [
+    '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6',
+    '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#a855f7',
+    '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#22d3ee',
+    '#facc15'
+  ];
 
   const isLight = theme === 'light';
   const chartGridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)';
@@ -678,39 +681,62 @@ export default function App() {
                   </div>
 
                   {compareData.length > 0 ? (
-                    <div className="h-80 w-full font-mono text-[10px]">
+                    <div className="h-96 w-full font-mono text-[10px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={compareData}>
+                        <LineChart data={compareData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                           <XAxis
                             dataKey="date"
                             stroke={chartAxisColor}
                             tickFormatter={(v) => v || ''}
+                            interval={Math.max(0, Math.floor(compareData.length / 8))}
+                            angle={-30}
+                            textAnchor="end"
+                            height={50}
+                            tick={{ fontSize: 9 }}
                           />
                           <YAxis
                             stroke={chartAxisColor}
                             tickFormatter={(v) => formatCurrency(v)}
+                            width={90}
+                            tick={{ fontSize: 10 }}
                           />
                           <Tooltip
                             contentStyle={{
                               backgroundColor: chartTooltipBg,
                               border: `1px solid ${chartTooltipBorder}`,
-                              color: chartTooltipColor
+                              color: chartTooltipColor,
+                              fontSize: '11px',
+                              borderRadius: '8px',
+                              padding: '8px 12px',
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                             }}
-                            formatter={(value) => [formatCurrency(value), "Portfolio Value"]}
+                            formatter={(value, name) => [formatCurrency(value), name]}
                           />
-                          <Legend />
+                          <Legend
+                            wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+                            iconType="plainline"
+                          />
                           {selectedRunsForCompare.map((fname, idx) => {
                             const runMeta = historyList.find(h => h.filename === fname);
-                            const label = runMeta ? runMeta.alias : fname;
+                            const approach = runMeta?.prompt_version || runMeta?.trading_approach || '';
+                            const label = runMeta ? (approach ? `${runMeta.alias} (${approach})` : runMeta.alias) : fname;
+                            const strokeWidths = [2.5, 2, 2, 1.8, 1.8, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5];
+                            const dashPatterns = [
+                              undefined, undefined, undefined, undefined,
+                              '8 3', '8 3', '5 3', '5 3',
+                              '3 3', '3 3', '10 3 3 3', '10 3 3 3'
+                            ];
                             return (
                               <Line
                                 key={fname}
                                 type="monotone"
                                 dataKey={label}
                                 stroke={COLORS[idx % COLORS.length]}
-                                strokeWidth={2}
+                                strokeWidth={strokeWidths[idx] || 1.5}
+                                strokeDasharray={dashPatterns[idx]}
                                 dot={false}
+                                activeDot={{ r: 4, strokeWidth: 2 }}
                               />
                             );
                           })}
@@ -757,16 +783,21 @@ export default function App() {
                               <th className="py-2.5 px-3">Model Alias</th>
                               <th className="py-2.5 px-3">Prompt</th>
                               <th className="py-2.5 px-3">Budget</th>
-                              <th className="py-2.5 px-3">Cum. Return</th>
+                              <th className="py-2.5 px-3">Final Budget</th>
+                              <th className="py-2.5 px-3">PNL</th>
+                              <th className="py-2.5 px-3">Period</th>
                               <th className="py-2.5 px-3">Max DD</th>
                               <th className="py-2.5 px-3 font-mono">Sharpe</th>
                               <th className="py-2.5 px-3 font-mono">Win Rate</th>
-                              <th className="py-2.5 px-3 font-mono">Alpha</th>
                               <th className="py-2.5 px-3 text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border/60">
-                            {historyList.map(run => (
+                            {historyList.map(run => {
+                              const runPnl = run.pnl ?? 0;
+                              const pnlIsPositive = runPnl >= 0;
+                              const sym = run.exchange === 'BIST30' ? '₺' : '$';
+                              return (
                               <tr key={run.filename} className="hover:bg-slate-800/40 transition-all font-mono">
                                 <td className="py-3 px-3">
                                   <input
@@ -779,11 +810,18 @@ export default function App() {
                                 <td className="py-3 px-3 font-bold text-slate-300">{run.alias}</td>
                                 <td className="py-3 px-3 text-slate-400">{run.prompt_version || 'v1'}</td>
                                 <td className="py-3 px-3 text-slate-400">{formatRunCapital(run)}</td>
-                                <td className="py-3 px-3 text-emerald-400 font-bold">{run.metrics?.["Cumulative Return"] || '0.00%'}</td>
+                                <td className="py-3 px-3 text-slate-200 font-bold">{run.final_budget != null ? `${sym}${run.final_budget.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-'}</td>
+                                <td className={`py-3 px-3 font-bold ${pnlIsPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  {pnlIsPositive ? '+' : ''}{sym}{runPnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                </td>
+                                <td className="py-3 px-3 text-slate-400 text-[10px]">
+                                  {run.date_range && run.date_range.length === 2
+                                    ? `${run.date_range[0].split('-').reverse().join('.')} - ${run.date_range[1].split('-').reverse().join('.')}`
+                                    : '-'}
+                                </td>
                                 <td className="py-3 px-3 text-rose-400">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
                                 <td className="py-3 px-3 text-amber-400">{run.metrics?.["Sharpe Ratio"] || '-'}</td>
                                 <td className="py-3 px-3 text-blue-400">{run.metrics?.["Win Rate"] || '-'}</td>
-                                <td className="py-3 px-3 text-purple-400">{run.metrics?.["Alpha vs Benchmark"] || '-'}</td>
                                 <td className="py-3 px-3 text-right">
                                   <button
                                     onClick={() => {
@@ -796,7 +834,8 @@ export default function App() {
                                   </button>
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -810,7 +849,7 @@ export default function App() {
                     {selectedRunsForCompare.length < 2 ? (
                       <div className="h-64 flex flex-col justify-center items-center text-center text-xs text-slate-500 border border-dashed border-border rounded">
                         <Sliders className="h-6 w-6 text-slate-600 mb-2" />
-                        <span>Select 2 runs to compare metrics side-by-side</span>
+                        <span>Select runs to compare</span>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -834,8 +873,19 @@ export default function App() {
                                   <div className="text-xs font-bold text-rose-400 font-mono mt-0.5">{run.metrics?.["Max Drawdown"]}</div>
                                 </div>
                                 <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Sortino</div>
-                                  <div className="text-xs font-bold text-amber-500 font-mono mt-0.5">{run.metrics?.["Sortino Ratio"]}</div>
+                                  {(() => {
+                                    const runPnl = run.pnl ?? 0;
+                                    const pnlPos = runPnl >= 0;
+                                    const sym = run.exchange === 'BIST30' ? '₺' : '$';
+                                    return (
+                                      <>
+                                        <div className="text-[9px] text-slate-500 uppercase tracking-wider">PNL</div>
+                                        <div className={`text-xs font-bold font-mono mt-0.5 ${pnlPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                          {pnlPos ? '+' : ''}{sym}{runPnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>

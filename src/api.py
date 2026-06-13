@@ -309,19 +309,27 @@ def get_backtest_history(
             stat = os.stat(fpath)
             with open(fpath) as f:
                 r = json.load(f)
+                history_arr = r.get("history", [])
+                init_cap = r.get("initial_capital", 0)
+                final_val = history_arr[-1] if history_arr else init_cap
+                pnl = final_val - init_cap if init_cap else 0
+
                 runs.append({
                     "filename": fname,
                     "alias": r.get("alias"),
                     "model_name": r.get("model_name"),
                     "timestamp": r.get("timestamp"),
                     "metrics": r.get("metrics"),
-                    "history_length": len(r.get("history", [])),
+                    "history_length": len(history_arr),
                     "trades_count": len(r.get("trades", [])),
                     "created_at": stat.st_mtime,
                     "exchange": r.get("exchange"),
-                    "initial_capital": r.get("initial_capital"),
+                    "initial_capital": init_cap,
+                    "final_budget": final_val,
+                    "pnl": pnl,
                     "trading_approach": r.get("trading_approach") or r.get("prompt_version") or "v1",
-                    "prompt_version": r.get("trading_approach") or r.get("prompt_version") or "v1"
+                    "prompt_version": r.get("trading_approach") or r.get("prompt_version") or "v1",
+                    "date_range": r.get("date_range")
                 })
         except Exception as e:
             log.warning(f"Error parsing history file {fname}: {e}")
