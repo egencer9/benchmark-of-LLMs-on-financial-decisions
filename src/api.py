@@ -309,6 +309,15 @@ def get_backtest_history(
             stat = os.stat(fpath)
             with open(fpath) as f:
                 r = json.load(f)
+                date_range = r.get("date_range")
+                if not date_range:
+                    match = re.search(r"_(\d{8})_(\d{8})\.json$", fname)
+                    if match:
+                        start_str, end_str = match.groups()
+                        date_range = [
+                            f"{start_str[:4]}-{start_str[4:6]}-{start_str[6:]}",
+                            f"{end_str[:4]}-{end_str[4:6]}-{end_str[6:]}"
+                        ]
                 runs.append({
                     "filename": fname,
                     "alias": r.get("alias"),
@@ -321,7 +330,8 @@ def get_backtest_history(
                     "exchange": r.get("exchange"),
                     "initial_capital": r.get("initial_capital"),
                     "trading_approach": r.get("trading_approach") or r.get("prompt_version") or "v1",
-                    "prompt_version": r.get("trading_approach") or r.get("prompt_version") or "v1"
+                    "prompt_version": r.get("trading_approach") or r.get("prompt_version") or "v1",
+                    "date_range": date_range
                 })
         except Exception as e:
             log.warning(f"Error parsing history file {fname}: {e}")

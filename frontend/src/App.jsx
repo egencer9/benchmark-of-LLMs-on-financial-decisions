@@ -299,7 +299,9 @@ export default function App() {
           if (detail && detail.date) {
             point.date = detail.date;
           }
-          point[run.alias] = run.history[i] !== undefined ? run.history[i] : null;
+          const approach = run.trading_approach || run.prompt_version || 'Balanced';
+          const uniqueLabel = `${run.alias} (${approach})`;
+          point[uniqueLabel] = run.history[i] !== undefined ? run.history[i] : null;
         });
         chartPoints.push(point);
       }
@@ -387,11 +389,6 @@ export default function App() {
             return prev;
           }
         }
-        // Limit to 10 compare runs overlay
-        if (prev.length >= 10) {
-          alert("You can compare up to 10 runs at the same time.");
-          return prev;
-        }
         return [...prev, filename];
       }
     });
@@ -401,6 +398,39 @@ export default function App() {
   const formatCurrency = (val) => {
     if (val === undefined || val === null) return '-';
     return `${currencySymbol}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Helper to extract/format dates of the run from run object
+  const getRunDatesStr = (run) => {
+    if (!run) return '-';
+    // 1. Try date_range array
+    if (run.date_range && Array.isArray(run.date_range) && run.date_range.length >= 2) {
+      const formatSingleDate = (dStr) => {
+        if (!dStr) return '-';
+        const parts = dStr.split('-');
+        if (parts.length !== 3) return dStr;
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+      };
+      return `${formatSingleDate(run.date_range[0])} - ${formatSingleDate(run.date_range[1])}`;
+    }
+    // 2. Try parsing filename (e.g. NASDAQ_DeepSeek_R1_Balanced_20260508_20260603.json)
+    if (run.filename) {
+      const match = run.filename.match(/_(\d{8})_(\d{7,8})\.json$/);
+      if (match) {
+        const startStr = match[1];
+        const endStr = match[2];
+        const formatDigits = (str) => {
+          if (!str || str.length < 7) return str;
+          const y = str.slice(0, 4);
+          const m = str.slice(4, 6);
+          const d = str.slice(6);
+          const paddedD = d.length === 1 ? `0${d}` : d;
+          return `${paddedD}.${m}.${y}`;
+        };
+        return `${formatDigits(startStr)} - ${formatDigits(endStr)}`;
+      }
+    }
+    return '-';
   };
 
   // Allocation donut data helper (from latest day of active run details)
@@ -416,7 +446,12 @@ export default function App() {
     return data.filter(d => d.value > 0);
   };
 
-  const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16', '#eab308'];
+  const COLORS = [
+    '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', 
+    '#ec4899', '#06b6d4', '#6366f1', '#84cc16', '#eab308',
+    '#14b8a6', '#f97316', '#a855f7', '#d97706', '#db2777',
+    '#0ea5e9', '#059669', '#e11d48', '#4f46e5', '#ca8a04'
+  ];
 
   const isLight = theme === 'light';
   const chartGridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)';
@@ -702,39 +737,41 @@ export default function App() {
                   </div>
 
                   {compareData.length > 0 ? (
-                    <div className="h-80 w-full font-mono text-[10px]">
+                    <div className="h-[500px] w-full font-mono text-[10px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={compareData}>
                           <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                           <XAxis
-                            dataKey="date"
-                            stroke={chartAxisColor}
-                            tickFormatter={(v) => v || ''}
+                             dataKey="date"
+                             stroke={chartAxisColor}
+                             tickFormatter={(v) => v || ''}
                           />
                           <YAxis
-                            stroke={chartAxisColor}
-                            tickFormatter={(v) => formatCurrency(v)}
+                             stroke={chartAxisColor}
+                             tickFormatter={(v) => formatCurrency(v)}
                           />
                           <Tooltip
-                            contentStyle={{
-                              backgroundColor: chartTooltipBg,
-                              border: `1px solid ${chartTooltipBorder}`,
-                              color: chartTooltipColor
-                            }}
-                            formatter={(value) => [formatCurrency(value), "Portfolio Value"]}
+                             contentStyle={{
+                               backgroundColor: chartTooltipBg,
+                               border: `1px solid ${chartTooltipBorder}`,
+                               color: chartTooltipColor
+                             }}
+                             formatter={(value, name) => [formatCurrency(value), name]}
                           />
                           <Legend />
                           {selectedRunsForCompare.map((fname, idx) => {
                             const runMeta = historyList.find(h => h.filename === fname);
-                            const label = runMeta ? runMeta.alias : fname;
+                            const approach = runMeta ? (runMeta.trading_approach || runMeta.prompt_version || 'Balanced') : 'Balanced';
+                            const label = runMeta ? `${runMeta.alias} (${approach})` : fname;
                             return (
                               <Line
                                 key={fname}
                                 type="monotone"
                                 dataKey={label}
                                 stroke={COLORS[idx % COLORS.length]}
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                                 dot={false}
+                                activeDot={{ r: 4 }}
                               />
                             );
                           })}
@@ -767,8 +804,7 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 bg-card border border-border p-6 rounded-xl">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Saved Runs History Ledger</h3>
-                    
-                    {historyList.length === 0 ? (
+                                      {historyList.length === 0 ? (
                       <div className="py-12 text-center text-xs text-slate-500">
                         No historical run files found. Run a simulation in the Backtest Runner first.
                       </div>
@@ -781,85 +817,106 @@ export default function App() {
                               <th className="py-2.5 px-3">Model Alias</th>
                               <th className="py-2.5 px-3">Prompt</th>
                               <th className="py-2.5 px-3">Budget</th>
-                              <th className="py-2.5 px-3">Cum. Return</th>
+                              <th className="py-2.5 px-3">Dates of Run</th>
                               <th className="py-2.5 px-3">Max DD</th>
                               <th className="py-2.5 px-3 font-mono">Sharpe</th>
                               <th className="py-2.5 px-3 font-mono">Win Rate</th>
-                              <th className="py-2.5 px-3 font-mono">Alpha</th>
+                              <th className="py-2.5 px-3">Final Budget</th>
+                              <th className="py-2.5 px-3">P&L</th>
                               <th className="py-2.5 px-3 text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border/60">
-                            {historyList.map(run => (
-                              <tr key={run.filename} className="hover:bg-slate-800/40 transition-all font-mono">
-                                <td className="py-3 px-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedRunsForCompare.includes(run.filename)}
-                                    onChange={() => toggleCompareRun(run.filename)}
-                                    className="h-4 w-4 bg-slate-900 border-border rounded text-blue-600 accent-blue-600 cursor-pointer"
-                                  />
-                                </td>
-                                <td className="py-3 px-3 font-bold text-slate-300">{run.alias}</td>
-                                <td className="py-3 px-3 text-slate-400">{run.prompt_version || 'v1'}</td>
-                                <td className="py-3 px-3 text-slate-400">{formatRunCapital(run)}</td>
-                                <td className="py-3 px-3 text-emerald-400 font-bold">{run.metrics?.["Cumulative Return"] || '0.00%'}</td>
-                                <td className="py-3 px-3 text-rose-400">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
-                                <td className="py-3 px-3 text-amber-400">{run.metrics?.["Sharpe Ratio"] || '-'}</td>
-                                <td className="py-3 px-3 text-blue-400">{run.metrics?.["Win Rate"] || '-'}</td>
-                                <td className="py-3 px-3 text-purple-400">{run.metrics?.["Alpha vs Benchmark"] || '-'}</td>
-                                <td className="py-3 px-3 text-right">
-                                  <button
-                                    onClick={() => {
-                                      loadRunDetails(run.filename);
-                                      setSubTab('insights');
-                                    }}
-                                    className="bg-slate-800 border border-slate-700 text-slate-300 font-semibold px-2.5 py-1 rounded hover:bg-slate-700 transition-colors"
-                                  >
-                                    View Details
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            {historyList.map(run => {
+                              const initialCapital = run.initial_capital || 1000000;
+                              const cumReturnStr = run.metrics?.["Cumulative Return"] || '0.00%';
+                              const cumReturnVal = parseFloat(cumReturnStr.replace('%', '')) / 100.0;
+                              const finalBudget = initialCapital * (1 + cumReturnVal);
+                              const pnlVal = finalBudget - initialCapital;
+                              return (
+                                <tr key={run.filename} className="hover:bg-slate-800/40 transition-all font-mono">
+                                  <td className="py-3 px-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedRunsForCompare.includes(run.filename)}
+                                      onChange={() => toggleCompareRun(run.filename)}
+                                      className="h-4 w-4 bg-slate-900 border-border rounded text-blue-600 accent-blue-600 cursor-pointer"
+                                    />
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-slate-300">{run.alias}</td>
+                                  <td className="py-3 px-3 text-slate-400">{run.prompt_version || 'v1'}</td>
+                                  <td className="py-3 px-3 text-slate-400">{formatRunCapital(run)}</td>
+                                  <td className="py-3 px-3 text-pink-300 text-[10px] whitespace-nowrap">{getRunDatesStr(run)}</td>
+                                  <td className="py-3 px-3 text-rose-400">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
+                                  <td className="py-3 px-3 text-amber-400">{run.metrics?.["Sharpe Ratio"] || '-'}</td>
+                                  <td className="py-3 px-3 text-blue-400">{run.metrics?.["Win Rate"] || '-'}</td>
+                                  <td className="py-3 px-3 text-slate-200 font-bold">{formatCurrency(finalBudget)}</td>
+                                  <td className={`py-3 px-3 font-bold ${pnlVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {pnlVal >= 0 ? '+' : ''}{formatCurrency(pnlVal)}
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    <button
+                                      onClick={() => {
+                                        loadRunDetails(run.filename);
+                                        setSubTab('insights');
+                                      }}
+                                      className="bg-slate-800 border border-slate-700 text-slate-300 font-semibold px-2.5 py-1 rounded hover:bg-slate-700 transition-colors"
+                                    >
+                                      View Details
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     )}
                   </div>
-
+ 
                   {/* Right comparison metrics cards */}
                   <div className="bg-card border border-border p-6 rounded-xl">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Direct Run Metrics Diffs</h3>
                     
-                    {selectedRunsForCompare.length < 2 ? (
+                    {selectedRunsForCompare.length === 0 ? (
                       <div className="h-64 flex flex-col justify-center items-center text-center text-xs text-slate-500 border border-dashed border-border rounded">
                         <Sliders className="h-6 w-6 text-slate-600 mb-2" />
-                        <span>Select 2 runs to compare metrics side-by-side</span>
+                        <span>Select runs to compare</span>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         {selectedRunsForCompare.map((fname, idx) => {
                           const run = historyList.find(h => h.filename === fname);
                           if (!run) return null;
+                          const initialCapital = run.initial_capital || 1000000;
+                          const cumReturnStr = run.metrics?.["Cumulative Return"] || '0.00%';
+                          const cumReturnVal = parseFloat(cumReturnStr.replace('%', '')) / 100.0;
+                          const pnlVal = initialCapital * cumReturnVal;
                           return (
                             <div key={fname} className="p-4 rounded-lg bg-slate-950/60 border border-border animate-fade-in">
                               <div className="flex items-center gap-2 mb-2">
                                 <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                <span className="font-bold text-xs truncate text-slate-200">{run.alias}</span>
+                                <span className="font-bold text-xs truncate text-slate-200">
+                                  {run.alias} ({run.trading_approach || run.prompt_version || 'Balanced'})
+                                </span>
                               </div>
                               
-                              <div className="grid grid-cols-3 gap-2 text-center mt-2 pt-2 border-t border-white/5">
-                                <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Return</div>
-                                  <div className="text-xs font-bold text-emerald-400 font-mono mt-0.5">{run.metrics?.["Cumulative Return"]}</div>
+                              <div className="mt-2 pt-2 border-t border-white/5 font-mono text-[11px] space-y-1.5">
+                                <div className="text-center">
+                                  <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Dates of Run</span>
+                                  <span className="text-[10px] font-bold text-pink-300 mt-0.5 block">{getRunDatesStr(run)}</span>
                                 </div>
-                                <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Max DD</div>
-                                  <div className="text-xs font-bold text-rose-400 font-mono mt-0.5">{run.metrics?.["Max Drawdown"]}</div>
-                                </div>
-                                <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Sortino</div>
-                                  <div className="text-xs font-bold text-amber-500 font-mono mt-0.5">{run.metrics?.["Sortino Ratio"]}</div>
+                                <div className="grid grid-cols-2 gap-2 text-center pt-1">
+                                  <div>
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">Max DD</div>
+                                    <div className="text-xs font-bold text-rose-400 mt-0.5">{run.metrics?.["Max Drawdown"]}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">PnL</div>
+                                    <div className={`text-xs font-bold mt-0.5 ${pnlVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                      {pnlVal >= 0 ? '+' : ''}{formatCurrency(pnlVal)}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
