@@ -4,14 +4,51 @@
 # Index 0 = default model used by the UI runner.
 
 openrouter_models:
-  - alias: "Llama 3.1 8B (Free)"
-    model_name: "meta-llama/llama-3.1-8b-instruct:free"
 
-  - alias: "Gemini 2.0 Flash Exp (Free)"
-    model_name: "google/gemini-2.0-flash-exp:free"
+  # ─── STATE-OF-THE-ART FRONTIER MODELS ───────────────────────────────────────
 
-  - alias: "Meta Llama 3 70B Instruct"
-    model_name: "meta-llama/llama-3-70b-instruct"
+  - alias: "Claude 3.7 Sonnet"
+    model_name: "anthropic/claude-3.7-sonnet"
+
+  - alias: "Claude 3.7 Sonnet (Thinking)"
+    model_name: "anthropic/claude-3.7-sonnet:thinking"
+
+  - alias: "Gemini 2.5 Pro"
+    model_name: "google/gemini-2.5-pro"
+
+  - alias: "Gemini 2.5 Flash"
+    model_name: "google/gemini-2.5-flash"
+
+  - alias: "OpenAI o3"
+    model_name: "openai/o3"
+
+  - alias: "OpenAI o3-mini"
+    model_name: "openai/o3-mini"
+
+  - alias: "OpenAI o1"
+    model_name: "openai/o1"
+
+  - alias: "OpenAI o4-mini"
+    model_name: "openai/o4-mini"
+
+  # ─── DEEPSEEK ────────────────────────────────────────────────────────────────
+
+  - alias: "DeepSeek R1"
+    model_name: "deepseek/deepseek-r1"
+
+  - alias: "DeepSeek R1 (Free)"
+    model_name: "deepseek/deepseek-r1:free"
+
+  - alias: "DeepSeek Chat (V3)"
+    model_name: "deepseek/deepseek-chat"
+
+  # ─── META LLAMA ──────────────────────────────────────────────────────────────
+
+  - alias: "Llama 4 Maverick"
+    model_name: "meta-llama/llama-4-maverick"
+
+  - alias: "Llama 4 Scout"
+    model_name: "meta-llama/llama-4-scout"
 
   - alias: "Meta Llama 3.3 70B Instruct"
     model_name: "meta-llama/llama-3.3-70b-instruct"
@@ -19,23 +56,29 @@ openrouter_models:
   - alias: "Meta Llama 3.1 405B Instruct"
     model_name: "meta-llama/llama-3.1-405b-instruct"
 
+  - alias: "Llama 3.1 8B (Free)"
+    model_name: "meta-llama/llama-3.1-8b-instruct:free"
+
+  # ─── QWEN ────────────────────────────────────────────────────────────────────
+
+  - alias: "Qwen3 235B A22B"
+    model_name: "qwen/qwen3-235b-a22b"
+
+  - alias: "Qwen3 30B A3B"
+    model_name: "qwen/qwen3-30b-a3b"
+
   - alias: "Qwen 2.5 72B Instruct"
     model_name: "qwen/qwen-2.5-72b-instruct"
 
-  - alias: "Qwen 2.5 Coder 32B Instruct"
-    model_name: "qwen/qwen-2.5-coder-32b-instruct"
+  # ─── GOOGLE GEMINI ───────────────────────────────────────────────────────────
 
-  - alias: "DeepSeek Chat"
-    model_name: "deepseek/deepseek-chat"
-
-  - alias: "DeepSeek R1"
-    model_name: "deepseek/deepseek-r1"
+  - alias: "Gemini 2.0 Flash Exp (Free)"
+    model_name: "google/gemini-2.0-flash-exp:free"
 
   - alias: "Google Gemini 1.5 Pro"
     model_name: "google/gemini-1.5-pro"
 
-  - alias: "Google Gemini 1.5 Flash"
-    model_name: "google/gemini-1.5-flash"
+  # ─── ANTHROPIC ───────────────────────────────────────────────────────────────
 
   - alias: "Anthropic Claude 3.5 Sonnet"
     model_name: "anthropic/claude-3.5-sonnet"
@@ -43,11 +86,23 @@ openrouter_models:
   - alias: "Anthropic Claude 3.5 Haiku"
     model_name: "anthropic/claude-3.5-haiku"
 
+  # ─── OPENAI ──────────────────────────────────────────────────────────────────
+
   - alias: "OpenAI GPT-4o"
     model_name: "openai/gpt-4o"
 
   - alias: "OpenAI GPT-4o Mini"
     model_name: "openai/gpt-4o-mini"
+
+  # ─── MISTRAL ─────────────────────────────────────────────────────────────────
+
+  - alias: "Mistral Large"
+    model_name: "mistralai/mistral-large"
+
+  - alias: "Mistral Small 3.1 24B"
+    model_name: "mistralai/mistral-small-3.1-24b-instruct"
+
+  # ─── NVIDIA ──────────────────────────────────────────────────────────────────
 
   - alias: "NVIDIA Nemotron 4 340B Instruct"
     model_name: "nvidia/nemotron-4-340b-instruct"

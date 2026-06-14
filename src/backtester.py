@@ -244,6 +244,12 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         log.warning(f"News data for exchange '{exchange}' not found — proceeding without news (LLM will rely on price action only).")
         news_data = pd.DataFrame(columns=['ticker', 'publishedAt', 'title', 'description', 'content'])
 
+    # Ensure publishedAt is always datetime — handles empty DFs, object-typed, and string columns
+    if 'publishedAt' not in news_data.columns:
+        news_data['publishedAt'] = pd.to_datetime(pd.Series([], dtype=str), utc=True)
+    else:
+        news_data['publishedAt'] = pd.to_datetime(news_data['publishedAt'], errors='coerce', utc=True)
+
     portfolio = Portfolio(exchange=exchange, trading_approach=trading_approach)
 
     market_data['Date'] = pd.to_datetime(market_data['Date'])

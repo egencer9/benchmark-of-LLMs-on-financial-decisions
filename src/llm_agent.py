@@ -136,7 +136,7 @@ def get_llm_decision(prompt, available_tickers, model_config=None):
         result = provider.get_decision(prompt, model_config)
 
         log.info("Sleeping for 3 seconds to respect API rate limits...")
-        time.sleep(3)
+        time.sleep(1)
 
         return result
 
