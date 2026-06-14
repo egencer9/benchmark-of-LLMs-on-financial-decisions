@@ -32,9 +32,9 @@ def _load_market_data_with_dates(exchange="BIST30"):
     return market_data, start_date, end_date
 
 def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=None, initial_cash=None, trading_approach=None):
-    # Apply configuration overrides
+    # Apply configuration overrides (without mutating global config)
+    initial_cap = initial_cash if initial_cash is not None else config.INITIAL_CASH
     if initial_cash is not None:
-        config.INITIAL_CASH = initial_cash
         log.info(f"CLI Override: INITIAL_CASH set to {initial_cash:,.2f}")
 
     # Determine model config
@@ -84,7 +84,8 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
         model_config=model_config,
         return_details=True,
         exchange=exchange,
-        trading_approach=active_trading_approach
+        trading_approach=active_trading_approach,
+        initial_cash=initial_cap
     )
 
     if not res or not res.get("history"):
@@ -109,7 +110,7 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
     simulation_dates = sorted(simulation_dates)
     
     baseline_history = create_buy_and_hold_baseline(
-        config.INITIAL_CASH, [index_ticker], market_data, simulation_dates
+        initial_cap, [index_ticker], market_data, simulation_dates
     )
 
     # Calculate financial metrics
@@ -119,7 +120,7 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
     daily_pnls = pd.Series([h.get("daily_pnl", 0.0) for h in detailed_history])
     positions = pd.Series([h.get("position_type", "FLAT") for h in detailed_history])
     
-    tot_ret = total_return(pd.Series(history), config.INITIAL_CASH)
+    tot_ret = total_return(pd.Series(history), initial_cap)
     max_dd = max_drawdown(pd.Series(history))
     sharpe = sharpe_ratio(model_returns)
     wr = win_rate(daily_pnls, positions)
@@ -160,7 +161,7 @@ def run_single_model(model_input, exchange="BIST30", start_date=None, end_date=N
         "prompt_version": active_trading_approach,  # Write both keys for backward-compatibility with UI columns
         "exchange": exchange,
         "date_range": [run_start, run_end],
-        "initial_capital": config.INITIAL_CASH,
+        "initial_capital": initial_cap,
         "timestamp": timestamp,
         "metrics": metrics,
         "history": history,

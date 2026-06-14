@@ -228,7 +228,7 @@ class Portfolio:
             "total_value": equity
         })
 
-def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30", trading_approach="Balanced"):
+def run_backtest(start_date, end_date, model_config=None, return_details=False, exchange="BIST30", trading_approach="Balanced", initial_cash=None):
     """Main backtesting loop for futures index trading."""
     # Cache üzerinden sadece istenen aralığı yükle (yoksa otomatik çekilir)
     try:
@@ -250,7 +250,7 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
     else:
         news_data['publishedAt'] = pd.to_datetime(news_data['publishedAt'], errors='coerce', utc=True)
 
-    portfolio = Portfolio(exchange=exchange, trading_approach=trading_approach)
+    portfolio = Portfolio(exchange=exchange, initial_cash=initial_cash, trading_approach=trading_approach)
 
     market_data['Date'] = pd.to_datetime(market_data['Date'])
     start_date = pd.to_datetime(start_date)
@@ -304,20 +304,32 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
 
         # Daily component data & news summaries
         lookback_start = current_date - timedelta(days=7)
-        news_window = news_data[
-            (news_data['publishedAt'].dt.date >= lookback_start.date()) &
-            (news_data['publishedAt'].dt.date <= current_date.date())
-        ]
+        if is_intraday:
+            news_window = news_data[
+                (news_data['publishedAt'].dt.date >= lookback_start.date()) &
+                (news_data['publishedAt'].dt.date < current_date.date())
+            ]
+        else:
+            news_window = news_data[
+                (news_data['publishedAt'].dt.date >= lookback_start.date()) &
+                (news_data['publishedAt'].dt.date <= current_date.date())
+            ]
 
         daily_news_summaries = {}
         for ticker in current_prices.keys():
             ticker_news = news_window[news_window['ticker'] == ticker]
             if ticker_news.empty:
                 # Fallback: strictly query historical news up to current simulation day (no future news!)
-                historical_news = news_data[
-                    (news_data['ticker'] == ticker) &
-                    (news_data['publishedAt'].dt.date <= current_date.date())
-                ]
+                if is_intraday:
+                    historical_news = news_data[
+                        (news_data['ticker'] == ticker) &
+                        (news_data['publishedAt'].dt.date < current_date.date())
+                    ]
+                else:
+                    historical_news = news_data[
+                        (news_data['ticker'] == ticker) &
+                        (news_data['publishedAt'].dt.date <= current_date.date())
+                    ]
                 ticker_news = historical_news.sort_values('publishedAt', ascending=False)
             recent_news = ticker_news.sort_values(by='publishedAt', ascending=False).head(3)
             descriptions = " ".join(recent_news['description'].dropna())
