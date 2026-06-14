@@ -309,17 +309,24 @@ def get_backtest_history(
             stat = os.stat(fpath)
             with open(fpath) as f:
                 r = json.load(f)
+                r_history = r.get("history", [])
+                initial_cap = r.get("initial_capital") or 1000000.0
+                final_cap = r_history[-1] if r_history else initial_cap
+                pnl_val = final_cap - initial_cap
                 runs.append({
                     "filename": fname,
                     "alias": r.get("alias"),
                     "model_name": r.get("model_name"),
                     "timestamp": r.get("timestamp"),
                     "metrics": r.get("metrics"),
-                    "history_length": len(r.get("history", [])),
+                    "history_length": len(r_history),
                     "trades_count": len(r.get("trades", [])),
                     "created_at": stat.st_mtime,
                     "exchange": r.get("exchange"),
-                    "initial_capital": r.get("initial_capital"),
+                    "initial_capital": initial_cap,
+                    "final_capital": final_cap,
+                    "pnl": pnl_val,
+                    "date_range": r.get("date_range"),
                     "trading_approach": r.get("trading_approach") or r.get("prompt_version") or "v1",
                     "prompt_version": r.get("trading_approach") or r.get("prompt_version") or "v1"
                 })
@@ -361,6 +368,24 @@ def get_run_details(exchange: str, filename: str):
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read result file: {str(e)}")
+
+
+@app.delete("/api/results/{exchange}/{filename}")
+def delete_run(exchange: str, filename: str):
+    """Deletes a specific run file from the results directory."""
+    safe_filename = os.path.basename(filename)
+    fpath = os.path.join(RESULTS_DIR, exchange, safe_filename)
+
+    if not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="Result file not found.")
+
+    try:
+        os.remove(fpath)
+        log.info(f"Deleted result file: {fpath}")
+        return {"message": "Run deleted successfully."}
+    except Exception as e:
+        log.error(f"Failed to delete run file {fpath}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete run file: {str(e)}")
 
 
 @app.get("/api/results/compare")

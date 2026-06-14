@@ -21,7 +21,8 @@ import {
   Layers,
   Sun,
   Moon,
-  Database
+  Database,
+  Trash2
 } from 'lucide-react';
 
 import {
@@ -185,14 +186,24 @@ export default function App() {
   // Fetch exchange specific details when tab changes
   useEffect(() => {
     fetchMarketData();
-    fetchHistory();
     fetchNews();
     fetchCacheStatus();
     setCompareData([]);
     setSelectedRunsForCompare([]);
     setSingleRunDetails(null);
     setSelectedHistoryFile('');
+    
+    if (historyPage === 1) {
+      fetchHistory();
+    } else {
+      setHistoryPage(1);
+    }
   }, [exchange]);
+
+  // Fetch history list when page changes
+  useEffect(() => {
+    fetchHistory();
+  }, [historyPage]);
 
 
   // Handle run selection comparison fetches
@@ -299,7 +310,8 @@ export default function App() {
           if (detail && detail.date) {
             point.date = detail.date;
           }
-          point[run.alias] = run.history[i] !== undefined ? run.history[i] : null;
+          const label = `${run.alias} (${run.trading_approach || run.prompt_version || 'Balanced'})`;
+          point[label] = run.history[i] !== undefined ? run.history[i] : null;
         });
         chartPoints.push(point);
       }
@@ -324,6 +336,25 @@ export default function App() {
       alert(`Failed to load run details: ${err.message}`);
       setSingleRunDetails(null);
       setSelectedHistoryFile('');
+    }
+  };
+
+  const deleteRun = async (filename) => {
+    const confirmDelete = window.confirm(`You are about to delete the run "${filename}". Are you sure?`);
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/results/${exchange}/${filename}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete the run.");
+      
+      // Remove from selected comparison overlay list if it was selected
+      setSelectedRunsForCompare(prev => prev.filter(f => f !== filename));
+      // Refresh current history runs list
+      fetchHistory();
+    } catch (err) {
+      alert(`Error deleting run: ${err.message}`);
     }
   };
 
@@ -387,11 +418,6 @@ export default function App() {
             return prev;
           }
         }
-        // Limit to 10 compare runs overlay
-        if (prev.length >= 10) {
-          alert("You can compare up to 10 runs at the same time.");
-          return prev;
-        }
         return [...prev, filename];
       }
     });
@@ -401,6 +427,16 @@ export default function App() {
   const formatCurrency = (val) => {
     if (val === undefined || val === null) return '-';
     return `${currencySymbol}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Format YYYY-MM-DD to DD.MM.YYYY
+  const formatDateStr = (dStr) => {
+    if (!dStr) return '';
+    const parts = dStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+    return dStr;
   };
 
   // Allocation donut data helper (from latest day of active run details)
@@ -416,7 +452,33 @@ export default function App() {
     return data.filter(d => d.value > 0);
   };
 
-  const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16', '#eab308'];
+  const COLORS = [
+    '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', 
+    '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#a855f7', 
+    '#eab308', '#6366f1', '#adfa1d', '#f43f5e', '#0284c7', 
+    '#b45309', '#4d7c0f', '#047857', '#0369a1', '#1d4ed8', 
+    '#4338ca', '#6d28d9', '#7e22ce', '#a21caf', '#be185d', 
+    '#be123c', '#b91c1c', '#c2410c', '#854d0e', '#15803d', 
+    '#0f766e', '#0e7490'
+  ];
+
+  const totalPages = Math.ceil(historyTotal / 20) || 1;
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (historyPage > 3) pages.push('...');
+      const start = Math.max(2, historyPage - 1);
+      const end = Math.min(totalPages - 1, historyPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (historyPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const isLight = theme === 'light';
   const chartGridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.03)';
@@ -721,19 +783,19 @@ export default function App() {
                               border: `1px solid ${chartTooltipBorder}`,
                               color: chartTooltipColor
                             }}
-                            formatter={(value) => [formatCurrency(value), "Portfolio Value"]}
+                            formatter={(value, name) => [formatCurrency(value), name]}
                           />
                           <Legend />
                           {selectedRunsForCompare.map((fname, idx) => {
                             const runMeta = historyList.find(h => h.filename === fname);
-                            const label = runMeta ? runMeta.alias : fname;
+                            const label = runMeta ? `${runMeta.alias} (${runMeta.trading_approach || runMeta.prompt_version || 'Balanced'})` : fname;
                             return (
                               <Line
                                 key={fname}
                                 type="monotone"
                                 dataKey={label}
                                 stroke={COLORS[idx % COLORS.length]}
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                                 dot={false}
                               />
                             );
@@ -779,13 +841,14 @@ export default function App() {
                             <tr className="border-b border-border text-slate-500 uppercase tracking-wider text-[10px] font-mono">
                               <th className="py-2.5 px-3">Compare</th>
                               <th className="py-2.5 px-3">Model Alias</th>
-                              <th className="py-2.5 px-3">Prompt</th>
-                              <th className="py-2.5 px-3">Budget</th>
-                              <th className="py-2.5 px-3">Cum. Return</th>
+                              <th className="py-2.5 px-3">Approach</th>
+                              <th className="py-2.5 px-3">Init. Capital</th>
+                              <th className="py-2.5 px-3">Final Capital</th>
+                              <th className="py-2.5 px-3">PnL</th>
+                              <th className="py-2.5 px-3">Run Dates</th>
                               <th className="py-2.5 px-3">Max DD</th>
                               <th className="py-2.5 px-3 font-mono">Sharpe</th>
                               <th className="py-2.5 px-3 font-mono">Win Rate</th>
-                              <th className="py-2.5 px-3 font-mono">Alpha</th>
                               <th className="py-2.5 px-3 text-right">Actions</th>
                             </tr>
                           </thead>
@@ -801,28 +864,89 @@ export default function App() {
                                   />
                                 </td>
                                 <td className="py-3 px-3 font-bold text-slate-300">{run.alias}</td>
-                                <td className="py-3 px-3 text-slate-400">{run.prompt_version || 'v1'}</td>
+                                <td className="py-3 px-3 text-slate-400">{run.trading_approach || 'Balanced'}</td>
                                 <td className="py-3 px-3 text-slate-400">{formatRunCapital(run)}</td>
-                                <td className="py-3 px-3 text-emerald-400 font-bold">{run.metrics?.["Cumulative Return"] || '0.00%'}</td>
+                                <td className="py-3 px-3 text-slate-300 font-bold">{formatCurrency(run.final_capital)}</td>
+                                <td className={`py-3 px-3 font-bold ${run.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  {run.pnl >= 0 ? '+' : ''}{formatCurrency(run.pnl)}
+                                </td>
+                                <td className="py-3 px-3 text-amber-100 font-mono">
+                                  {run.date_range && run.date_range.length === 2
+                                    ? `${formatDateStr(run.date_range[0])} - ${formatDateStr(run.date_range[1])}`
+                                    : '-'}
+                                </td>
                                 <td className="py-3 px-3 text-rose-400">{run.metrics?.["Max Drawdown"] || '0.00%'}</td>
                                 <td className="py-3 px-3 text-amber-400">{run.metrics?.["Sharpe Ratio"] || '-'}</td>
                                 <td className="py-3 px-3 text-blue-400">{run.metrics?.["Win Rate"] || '-'}</td>
-                                <td className="py-3 px-3 text-purple-400">{run.metrics?.["Alpha vs Benchmark"] || '-'}</td>
                                 <td className="py-3 px-3 text-right">
-                                  <button
-                                    onClick={() => {
-                                      loadRunDetails(run.filename);
-                                      setSubTab('insights');
-                                    }}
-                                    className="bg-slate-800 border border-slate-700 text-slate-300 font-semibold px-2.5 py-1 rounded hover:bg-slate-700 transition-colors"
-                                  >
-                                    View Details
-                                  </button>
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => {
+                                        loadRunDetails(run.filename);
+                                        setSubTab('insights');
+                                      }}
+                                      className="bg-slate-800/80 border border-slate-700/60 text-slate-300 font-medium px-2 py-1 rounded text-[10px] tracking-wide hover:bg-slate-700 hover:text-slate-100 transition-all cursor-pointer"
+                                    >
+                                      View Details
+                                    </button>
+                                    <button
+                                      onClick={() => deleteRun(run.filename)}
+                                      className="p-1.5 bg-rose-600/10 hover:bg-rose-600/20 text-rose-500 border border-rose-500/20 hover:border-rose-500/35 rounded transition-all cursor-pointer flex items-center justify-center"
+                                      title="Delete Run"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
+                      </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between border-t border-border/60 pt-4 mt-4 text-xs font-mono">
+                        <span className="text-slate-500">
+                          Showing {Math.min((historyPage - 1) * 20 + 1, historyTotal)} - {Math.min(historyPage * 20, historyTotal)} of {historyTotal} runs
+                        </span>
+                        
+                        <div className="flex items-center gap-1">
+                          <button
+                            disabled={historyPage === 1}
+                            onClick={() => setHistoryPage(prev => Math.max(prev - 1, 1))}
+                            className="px-2.5 py-1 rounded bg-slate-900 border border-border text-slate-400 hover:text-slate-200 disabled:opacity-40 disabled:hover:text-slate-400 disabled:cursor-not-allowed transition-all cursor-pointer"
+                          >
+                            Prev
+                          </button>
+                          
+                          {getPageNumbers().map((p, idx) => (
+                            p === '...' ? (
+                              <span key={`dots-${idx}`} className="px-1.5 text-slate-600">...</span>
+                            ) : (
+                              <button
+                                key={p}
+                                onClick={() => setHistoryPage(p)}
+                                className={`px-2.5 py-1 rounded transition-all cursor-pointer font-bold ${
+                                  historyPage === p
+                                    ? 'bg-blue-600 text-slate-100 font-extrabold'
+                                    : 'bg-slate-900 border border-border text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            )
+                          ))}
+                          
+                          <button
+                            disabled={historyPage === totalPages}
+                            onClick={() => setHistoryPage(prev => Math.min(prev + 1, totalPages))}
+                            className="px-2.5 py-1 rounded bg-slate-900 border border-border text-slate-400 hover:text-slate-200 disabled:opacity-40 disabled:hover:text-slate-400 disabled:cursor-not-allowed transition-all cursor-pointer"
+                          >
+                            Next
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -831,35 +955,41 @@ export default function App() {
                   <div className="bg-card border border-border p-6 rounded-xl">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Direct Run Metrics Diffs</h3>
                     
-                    {selectedRunsForCompare.length < 2 ? (
+                    {selectedRunsForCompare.length === 0 ? (
                       <div className="h-64 flex flex-col justify-center items-center text-center text-xs text-slate-500 border border-dashed border-border rounded">
                         <Sliders className="h-6 w-6 text-slate-600 mb-2" />
-                        <span>Select 2 runs to compare metrics side-by-side</span>
+                        <span>Select runs to compare</span>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         {selectedRunsForCompare.map((fname, idx) => {
                           const run = historyList.find(h => h.filename === fname);
                           if (!run) return null;
+                          const dateRangeStr = run.date_range && run.date_range.length === 2
+                            ? `${formatDateStr(run.date_range[0])}\n-\n${formatDateStr(run.date_range[1])}`
+                            : 'N/A';
+                          const runPnl = run.pnl || 0;
                           return (
                             <div key={fname} className="p-4 rounded-lg bg-slate-950/60 border border-border animate-fade-in">
                               <div className="flex items-center gap-2 mb-2">
                                 <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                <span className="font-bold text-xs truncate text-slate-200">{run.alias}</span>
+                                <span className="font-bold text-xs truncate text-slate-200">{run.alias} ({run.trading_approach || 'Balanced'})</span>
                               </div>
                               
-                              <div className="grid grid-cols-3 gap-2 text-center mt-2 pt-2 border-t border-white/5">
+                              <div className="grid grid-cols-3 gap-2 text-center mt-2 pt-2 border-t border-white/5 items-center">
                                 <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Return</div>
-                                  <div className="text-xs font-bold text-emerald-400 font-mono mt-0.5">{run.metrics?.["Cumulative Return"]}</div>
+                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Dates</div>
+                                  <div className="text-[10px] font-bold text-amber-100 font-mono mt-0.5 whitespace-pre-line leading-tight">{dateRangeStr}</div>
                                 </div>
                                 <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Max DD</div>
-                                  <div className="text-xs font-bold text-rose-400 font-mono mt-0.5">{run.metrics?.["Max Drawdown"]}</div>
+                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Max DD</div>
+                                  <div className="text-xs font-bold text-rose-400 font-mono mt-0.5">{run.metrics?.["Max Drawdown"] || '0.00%'}</div>
                                 </div>
                                 <div>
-                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">Sortino</div>
-                                  <div className="text-xs font-bold text-amber-500 font-mono mt-0.5">{run.metrics?.["Sortino Ratio"]}</div>
+                                  <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">PnL</div>
+                                  <div className={`text-xs font-bold font-mono mt-0.5 ${runPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {runPnl >= 0 ? '+' : ''}{formatCurrency(runPnl)}
+                                  </div>
                                 </div>
                               </div>
                             </div>
