@@ -244,7 +244,7 @@ export default function BacktestRunner({
             {runnerLogs.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-600 text-xs px-8">
                 <Cpu className="h-8 w-8 text-slate-700 mb-2" />
-                <span>Simulation Log terminal is empty. Trigger a run to steam output logs.</span>
+                <span>Simulation Log terminal is empty. Trigger a run to stream output logs.</span>
               </div>
             ) : (
               runnerLogs.map((logLine, idx) => (

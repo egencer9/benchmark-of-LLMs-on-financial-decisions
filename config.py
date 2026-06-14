@@ -67,10 +67,6 @@ EXCHANGES = {
         }
     }
 }
-
-TICKERS = EXCHANGES["BIST30"]["tickers"]
-COMPANY_NAMES = EXCHANGES["BIST30"]["companies"]
-
 INITIAL_CASH = 1000000  # 1 milyon
 SIMULATION_DAYS = 30
 
@@ -96,6 +92,7 @@ else:
 
 # --- API Keys ---
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPEN_ROUTER_KEY = os.getenv("OPEN_ROUTER_KEY")

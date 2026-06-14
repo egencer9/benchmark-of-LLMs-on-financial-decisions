@@ -44,7 +44,7 @@ class Portfolio:
         if self.exchange == "NASDAQ":
             return config.MARGIN_PER_CONTRACT_NASDAQ
         else:
-            # BIST30: margin = 10% of contract value = 10% of (price * 0.1) = price * 0.01
+            # BIST30: margin = 10% of contract value = 10% of (price * 10) = price * 1.0
             return price * config.MULTIPLIER_BIST30 * config.MARGIN_PCT_BIST30
 
     def get_margin_posted(self, price):

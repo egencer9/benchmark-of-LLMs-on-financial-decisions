@@ -41,40 +41,50 @@ def calculate_metrics(portfolio_history, risk_free_rate=0.02):
     log.info(f"Metrics calculated: {metrics}")
     return metrics
 
-def plot_performance(model_results, baseline_history):
+def plot_performance(model_results, baseline_history, exchange="BIST30"):
     """
     Plots multiple LLM model portfolios against a buy-and-hold baseline.
 
     model_results: list of dicts — [{"alias": str, "history": list}, ...]
     baseline_history: list of portfolio values for buy-and-hold
+    exchange: str — "BIST30" or "NASDAQ"
     """
     if not model_results:
         log.warning("Cannot plot: no model results provided.")
         return
 
-    log.info("Plotting portfolio performance for all models.")
-    colors = ['blue', 'green', 'red', 'purple', 'brown', 'pink', 'gray', 'olive']
+    log.info(f"Plotting portfolio performance for all models on exchange {exchange}.")
 
-    plt.figure(figsize=(14, 7))
+    # Dynamic currency and title formatting
+    currency_symbol = "$" if exchange == "NASDAQ" else "₺"
+    currency_code = "USD" if exchange == "NASDAQ" else "TRY"
+
+    # Set premium plot styles
+    plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.available else 'default')
+    plt.figure(figsize=(12, 6))
+
+    # Clean color palette (harmonized blue, green, red, purple, teal, orange, etc.)
+    hex_colors = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#00abc5', '#e377c2', '#7f7f7f', '#bcbd22']
 
     for i, result in enumerate(model_results):
         alias = result["alias"]
         history = result["history"]
         if history:
-            color = colors[i % len(colors)]
-            plt.plot(history, label=alias, color=color)
+            color = hex_colors[i % len(hex_colors)]
+            plt.plot(history, label=alias, color=color, linewidth=2.5)
 
     if baseline_history:
-        plt.plot(baseline_history, label="Buy & Hold Baseline", linestyle='--', color='orange', linewidth=2)
+        plt.plot(baseline_history, label="Buy & Hold Baseline", linestyle='--', color='#ff7f0e', linewidth=2.0, alpha=0.9)
 
-    plt.title("LLM Benchmark — Portfolio Performance vs. Buy & Hold (BIST30)")
-    plt.xlabel("Trading Days")
-    plt.ylabel("Portfolio Value (₺ TRY)")
-    plt.legend()
-    plt.grid(True)
+    plt.title(f"LLM Benchmark — Portfolio Equity Curves ({exchange})", fontsize=14, fontweight='bold', pad=15)
+    plt.xlabel("Trading Days", fontsize=11, fontweight='medium', labelpad=10)
+    plt.ylabel(f"Portfolio Value ({currency_symbol} {currency_code})", fontsize=11, fontweight='medium', labelpad=10)
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend(frameon=True, facecolor='white', edgecolor='#e0e0e0', framealpha=0.95, fontsize=10, loc='best')
     plt.tight_layout()
+    
     plot_filename = "logs/performance_plot.png"
-    plt.savefig(plot_filename)
+    plt.savefig(plot_filename, dpi=300) # Save in high DPI for publications
     log.info(f"Performance plot saved to {plot_filename}")
     plt.close()
 
@@ -107,7 +117,7 @@ def create_buy_and_hold_baseline(initial_investment, tickers, market_data, simul
                 shares = investment_per_ticker / price
                 shares_to_buy[ticker] = shares
                 cash_spent += (shares * price)
-                log.debug(f"Baseline: Buying {shares:.2f} shares of {ticker} at ₺{price:.2f}")
+                log.debug(f"Baseline: Buying {shares:.2f} shares of {ticker} at {price:.2f}")
             else:
                 log.warning(f"Initial price for {ticker} is zero. Cannot buy shares for baseline.")
         else:

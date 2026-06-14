@@ -246,9 +246,16 @@ def get_news_data(exchange: str, start_date, end_date) -> pd.DataFrame:
     fetch_ranges = []
 
     # NewsAPI ücretsiz plan yalnızca son ~30 günü destekler.
-    # Bu nedenle sadece son 35 güne kadar olan boşlukları çekmeye çalışırız.
+    # Ancak Finnhub kullanıldığında NASDAQ için daha derin geçmişe bakabiliriz (örneğin 365 gün).
+    import config
     import datetime as _dt
-    api_horizon = pd.Timestamp(_dt.datetime.now()) - timedelta(days=28)  # NewsAPI free plan ~30 days
+    is_limited = (exchange != "NASDAQ") or (not getattr(config, 'FINNHUB_API_KEY', None))
+    if is_limited:
+        api_horizon = pd.Timestamp(_dt.datetime.now()) - timedelta(days=28)  # NewsAPI free plan ~30 days
+        limit_name = "NewsAPI"
+    else:
+        api_horizon = pd.Timestamp(_dt.datetime.now()) - timedelta(days=365) # Finnhub free plan ~365 days
+        limit_name = "Finnhub"
 
     if cached_start is None:
         log.info(f"[Cache] '{exchange}' haber cache'i boş. Tüm aralık çekiliyor.")
@@ -256,12 +263,12 @@ def get_news_data(exchange: str, start_date, end_date) -> pd.DataFrame:
         if effective_start <= end:
             fetch_ranges.append((effective_start, end))
         else:
-            log.info(f"[Cache] İstenen aralık NewsAPI erişim sınırının dışında — haber olmadan devam.")
+            log.info(f"[Cache] İstenen aralık {limit_name} erişim sınırının dışında — haber olmadan devam.")
     else:
         if start < cached_start:
             gap_end = cached_start - timedelta(days=1)
             if gap_end < api_horizon:
-                log.info(f"[Cache] Haber sol boşluk ({_date_str(start)} → {_date_str(gap_end)}) NewsAPI erişim sınırı dışında — atlanıyor.")
+                log.info(f"[Cache] Haber sol boşluk ({_date_str(start)} → {_date_str(gap_end)}) {limit_name} erişim sınırı dışında — atlanıyor.")
             else:
                 effective_gap_start = max(start, api_horizon)
                 fetch_ranges.append((effective_gap_start, gap_end))

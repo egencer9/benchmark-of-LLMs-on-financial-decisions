@@ -196,38 +196,6 @@ def plot_all(exchange="BIST30"):
     except Exception as e:
         log.error(f"Failed to load market data: {e}")
         return
-    except Exception as e:
-        log.error(f"Error determining simulation dates: {e}", exc_info=True)
-        return
-
-    # --- MULTI-MODEL BACKTEST LOOP ---
-    active_models = [m for m in config.OPENROUTER_MODELS if m.get('active')]
-    
-    if not active_models and config.LLM_PROVIDER == 'openrouter':
-        log.warning("No active models found in config.yaml. Please set 'active: true' for at least one model.")
-        return
-
-    all_model_results = {}
-
-    # If provider is NOT openrouter (e.g. gemini), run once as before
-    if config.LLM_PROVIDER != 'openrouter':
-        # Create a dummy config wrapper for consistency
-        active_models = [{'alias': config.LLM_PROVIDER.capitalize(), 'provider': config.LLM_PROVIDER}]
-
-    for model_cfg in active_models:
-        model_name = model_cfg.get('alias', 'Unknown Model')
-        log.info(f"=== Running Backtest for Model: {model_name} ===")
-        
-        history = run_backtest(
-            start_date=start_date_str,
-            end_date=end_date_str,
-            model_config=model_cfg
-        )
-        
-        if history:
-            all_model_results[model_name] = history
-        else:
-            log.warning(f"Backtest failed or returned no history for {model_name}")
 
     exchange_results_dir = os.path.join(RESULTS_DIR, exchange)
     if not os.path.exists(exchange_results_dir):
@@ -283,7 +251,7 @@ def plot_all(exchange="BIST30"):
     for name, metrics in all_metrics.items():
         log.info(f"  {name}: {metrics}")
 
-    plot_performance(model_results, baseline_history)
+    plot_performance(model_results, baseline_history, exchange=exchange)
     log.info("Plot saved to logs/performance_plot.png")
 
 def run_all_models(exchange="BIST30", trading_approach="Balanced"):

@@ -181,45 +181,119 @@ def _article_matches_ticker(text: str, ticker: str) -> bool:
             return True
     return False
 
+def collect_finnhub_news(ticker, start_date, end_date):
+    """
+    Fetches news for a specific ticker from Finnhub API for the given date range.
+    """
+    if not getattr(config, 'FINNHUB_API_KEY', None):
+        log.warning("FINNHUB_API_KEY not set - skipping Finnhub fetch.")
+        return []
+
+    # Map ^NDX (index symbol) to QQQ (ETF tracking Nasdaq-100) for company news proxy
+    query_ticker = "QQQ" if ticker == "^NDX" else ticker
+
+    start_str = start_date.strftime('%Y-%m-%d')
+    end_str = end_date.strftime('%Y-%m-%d')
+
+    url = "https://finnhub.io/api/v1/company-news"
+    params = {
+        "symbol": query_ticker,
+        "from": start_str,
+        "to": end_str,
+        "token": config.FINNHUB_API_KEY
+    }
+
+    log.info(f"Fetching Finnhub news for {ticker} (mapped as {query_ticker}) from {start_str} to {end_str}")
+
+    try:
+        # Finnhub rate limits are 60 req/min for free tier.
+        response = requests.get(url, params=params, timeout=15)
+        
+        # Rate limit handling: if 429, wait a bit and retry once
+        if response.status_code == 429:
+            log.warning("[Rate Limit] Finnhub returned 429. Waiting 5 seconds to retry...")
+            time.sleep(5)
+            response = requests.get(url, params=params, timeout=15)
+
+        response.raise_for_status()
+        articles = response.json()
+        
+        if not isinstance(articles, list):
+            log.warning(f"Unexpected response format from Finnhub for {ticker}: {articles}")
+            return []
+
+        rows = []
+        for a in articles:
+            # Finnhub returns 'datetime' as a Unix timestamp in seconds
+            published_dt = pd.to_datetime(a.get('datetime', 0), unit='s')
+            
+            rows.append({
+                'ticker': ticker,
+                'publishedAt': published_dt,
+                'title': a.get('headline', ''),
+                'description': a.get('summary', ''),
+                'content': a.get('summary', '') or a.get('headline', ''),
+                'source': a.get('source', 'Finnhub')
+            })
+        
+        log.info(f"  → Found {len(rows)} articles from Finnhub for {ticker}")
+        return rows
+    except Exception as e:
+        log.error(f"Could not fetch Finnhub news for {ticker}. Reason: {e}")
+        return []
+
 def collect_all_news(exchange, start_date, end_date):
     """Runs both NewsAPI and RSS scrapers, merges results into an exchange specific CSV."""
     frames = []
     tickers = config.EXCHANGES.get(exchange, {}).get("tickers", [])
     companies = config.EXCHANGES.get(exchange, {}).get("companies", {})
 
-    # --- Source 1: NewsAPI (English, historical) ---
-    if config.NEWS_API_KEY:
-        try:
-            newsapi = NewsApiClient(api_key=config.NEWS_API_KEY)
-            api_rows = []
-            for ticker in tickers:
-                query = companies.get(ticker, ticker)
-                try:
-                    articles = newsapi.get_everything(
-                        q=query,
-                        from_param=start_date.strftime('%Y-%m-%d'),
-                        to=end_date.strftime('%Y-%m-%d'),
-                        language='en',
-                        sort_by='publishedAt'
-                    )
-                    for a in articles['articles']:
-                        api_rows.append({
-                            'ticker': ticker,
-                            'publishedAt': pd.to_datetime(a['publishedAt']),
-                            'title': a['title'],
-                            'description': a['description'],
-                            'content': a['content'],
-                            'source': 'NewsAPI',
-                        })
-                    log.info(f"NewsAPI: {len(articles['articles'])} EN articles for {ticker}")
-                except Exception as e:
-                    log.warning(f"NewsAPI failed for {ticker}: {e}")
-            if api_rows:
-                frames.append(pd.DataFrame(api_rows))
-        except Exception as e:
-            log.warning(f"NewsAPI client init failed: {e}")
+    # --- Source 1: Finnhub (For NASDAQ) or NewsAPI (Fallback/BIST30) ---
+    if exchange == "NASDAQ" and getattr(config, 'FINNHUB_API_KEY', None):
+        log.info("Using Finnhub API for NASDAQ news collection...")
+        finnhub_rows = []
+        for ticker in tickers:
+            rows = collect_finnhub_news(ticker, start_date, end_date)
+            if rows:
+                finnhub_rows.extend(rows)
+            # Sleep 1 second between tickers to avoid rate limits (60 req/min)
+            time.sleep(1)
+        if finnhub_rows:
+            frames.append(pd.DataFrame(finnhub_rows))
     else:
-        log.warning("NEWS_API_KEY not set — skipping NewsAPI.")
+        # --- Source 1: NewsAPI (English, historical) ---
+        if config.NEWS_API_KEY:
+            try:
+                newsapi = NewsApiClient(api_key=config.NEWS_API_KEY)
+                api_rows = []
+                for ticker in tickers:
+                    query = companies.get(ticker, ticker)
+                    try:
+                        articles = newsapi.get_everything(
+                            q=query,
+                            from_param=start_date.strftime('%Y-%m-%d'),
+                            to=end_date.strftime('%Y-%m-%d'),
+                            language='en',
+                            sort_by='publishedAt'
+                        )
+                        for a in articles['articles']:
+                            api_rows.append({
+                                'ticker': ticker,
+                                'publishedAt': pd.to_datetime(a['publishedAt']),
+                                'title': a['title'],
+                                'description': a['description'],
+                                'content': a['content'],
+                                'source': 'NewsAPI',
+                            })
+                        log.info(f"NewsAPI: {len(articles['articles'])} EN articles for {ticker}")
+                    except Exception as e:
+                        log.warning(f"NewsAPI failed for {ticker}: {e}")
+                if api_rows:
+                    frames.append(pd.DataFrame(api_rows))
+            except Exception as e:
+                log.warning(f"NewsAPI client init failed: {e}")
+        else:
+            log.warning("NEWS_API_KEY not set — skipping NewsAPI.")
 
     # --- Source 2: Turkish RSS feeds (BIST30 only) ---
     if exchange == "BIST30":
