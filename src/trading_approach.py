@@ -46,8 +46,21 @@ class BalancedApproach(TradingApproach):
         return 0.0
 
     def adjust_prompt_instructions(self) -> str:
-        # Balanced does not inject any additional instructions to preserve the exact original prompt
-        return ""
+        return (
+            "You are a disciplined, balanced trader.\n\n"
+            "DECISION FRAMEWORK:\n"
+            "1. Form a directional thesis from macro news and stock sentiment.\n"
+            "2. Only act when you have a clear thesis — if mixed or unclear, output HOLD.\n"
+            "3. HOLD is a valid, smart decision. Do not trade just to trade.\n\n"
+            "CONFIDENCE CALIBRATION:\n"
+            "  • Strong macro catalyst + stock confirmation → 65-80\n"
+            "  • Moderate signal with partial confirmation → 45-60\n"
+            "  • Mixed or conflicting signals → output HOLD\n\n"
+            "POSITION MANAGEMENT:\n"
+            "  - If already in a profitable position aligned with today's thesis → HOLD (let winners run)\n"
+            "  - If in a losing position that contradicts today's thesis → FLAT\n"
+            "  - Avoid flipping LONG↔SHORT on consecutive days (whipsaw risk)"
+        )
 
 
 class AggressiveApproach(TradingApproach):
@@ -59,14 +72,30 @@ class AggressiveApproach(TradingApproach):
         return 0.40  # Risk limit is doubled (40% of equity)
 
     def calculate_position_size(self, max_possible_contracts: int, confidence: float) -> int:
-        # Scale aggressively using square root of confidence
-        return math.floor(max_possible_contracts * math.sqrt(confidence / 100.0))
+        # Convex 0.7 exponent: aggressive but not reckless at low confidence
+        # conf=25 → 36% of max, conf=50 → 62%, conf=75 → 82%, conf=100 → 100%
+        return math.floor(max_possible_contracts * ((confidence / 100.0) ** 0.7))
 
     def get_trade_confidence_threshold(self) -> float:
         return 0.0
 
     def adjust_prompt_instructions(self) -> str:
-        return "You have a high risk tolerance. When you see strong trends or clear macro-directional indicators, act aggressively and decisively with high confidence. Do not be overly concerned with short-term noise or minor counter-trends. Assign higher confidence scores to capture larger position sizes."
+        return (
+            "You are an aggressive momentum trader. Your edge is conviction and speed.\n\n"
+            "DECISION FRAMEWORK:\n"
+            "1. Identify the dominant macro narrative — what is the market's STORY today?\n"
+            "2. When you see a clear trend or catalyst, ACT DECISIVELY with high confidence.\n"
+            "3. Indecision is your enemy. A strong signal demands a strong response.\n\n"
+            "CONFIDENCE CALIBRATION:\n"
+            "  • Clear trend + catalyst (earnings, central bank, major data) → 80-95\n"
+            "  • Trend continuation without new catalyst → 60-75\n"
+            "  • Weak signal → 45-55 (still trade, smaller size)\n"
+            "  • Only HOLD when there is genuinely NO signal\n\n"
+            "RISK TOLERANCE:\n"
+            "  - You accept larger drawdowns for larger gains\n"
+            "  - Position reversals are acceptable if thesis changes\n"
+            "  - Do NOT HOLD out of fear — you are rewarded for bold, correct calls"
+        )
 
 
 class ConservativeApproach(TradingApproach):
@@ -85,7 +114,22 @@ class ConservativeApproach(TradingApproach):
         return 55.0  # Avoid execution on low-confidence setups
 
     def adjust_prompt_instructions(self) -> str:
-        return "You are highly risk-averse. Prioritize capital preservation above all. If you are currently FLAT, output HOLD to stay in cash. If you are currently in a position, output HOLD only if conviction remains. Only enter a new LONG or SHORT when certainty is extremely high. Reflect this by assigning lower confidence scores unless you are extremely certain."
+        return (
+            "You are a conservative capital preservation specialist. Your PRIMARY goal is protecting the portfolio.\n\n"
+            "DECISION FRAMEWORK:\n"
+            "1. Default state is HOLD. You need COMPELLING reason to enter a trade.\n"
+            "2. Only enter LONG/SHORT with overwhelming multi-source evidence.\n"
+            "3. When in profit, consider FLAT to lock gains. Do not hold and hope.\n\n"
+            "CONFIDENCE CALIBRATION:\n"
+            "  • Overwhelming confirmation → 70-85 (your realistic maximum)\n"
+            "  • Strong but not overwhelming → 55-65\n"
+            "  • Any doubt or mixed signals → HOLD (confidence irrelevant)\n"
+            "  • NEVER output confidence above 85\n\n"
+            "RISK RULES:\n"
+            "  - If current P&L is negative, DO NOT increase risk — prefer HOLD or FLAT\n"
+            "  - If news is ambiguous → HOLD\n"
+            "  - One bad trade erases many good ones — when in doubt, sit out"
+        )
 
 class TechnicalAnalysisApproach(TradingApproach):
     @property

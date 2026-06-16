@@ -354,8 +354,12 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
             'position_type': portfolio.position_type,
             'contracts': portfolio.contracts,
             'entry_price': portfolio.entry_price,
-            'unrealized_pnl': portfolio.get_unrealized_pnl(today_open if is_intraday else today_close)
+            'unrealized_pnl': portfolio.get_unrealized_pnl(today_open if is_intraday else today_close),
+            'initial_cash': portfolio.initial_cash,
+            'approach_name': portfolio.approach.name,
+            'is_intraday': is_intraday,
         }
+
 
         is_last_day = (current_date == simulation_dates[-1])
         if is_last_day:
