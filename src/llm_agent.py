@@ -218,7 +218,7 @@ def parse_llm_response(response_str):
 
 # Dummy response generator removed to enforce strict real-data production runs.
 
-def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BIST30", trading_approach="Balanced"):
+def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BIST30", trading_approach="Balanced", ta_market_data=None, current_date=None):
     log.debug(f"Constructing {exchange} master prompt with approach {trading_approach}...")
 
     exch_config = config.EXCHANGES.get(exchange, config.EXCHANGES["BIST30"])
@@ -230,13 +230,26 @@ def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BI
     index_price = market_data.get(index_ticker, {}).get('price', 0.0)
     macro_news = news_summaries.get(index_ticker, "No macroeconomic news.")
 
+    # --- Technical Analysis block (only for TechnicalAnalysis approach) ---
+    is_ta_mode = trading_approach.lower().strip() == "technicalanalysis" and ta_market_data is not None and current_date is not None
+    ta_index_block = ""
+    if is_ta_mode:
+        from src.technical_indicators import get_index_ta_summary, get_stock_ta_brief
+        ta_index_block = get_index_ta_summary(ta_market_data, index_ticker, current_date, currency_symbol)
+        log.info(f"[TA Mode] Index technical summary injected into prompt.")
+
     stocks_str = ""
     for ticker, data in market_data.items():
         if ticker == index_ticker:
             continue
         company = exch_config.get("companies", {}).get(ticker, ticker)
         news = news_summaries.get(ticker, "No recent news.")
-        stocks_str += f"- **{ticker}** ({company}): {currency_symbol}{data['price']:.2f} {currency} | News: {news}\n"
+        # In TA mode, append stock-level TA brief (5D%, RSI)
+        if is_ta_mode:
+            ta_brief = get_stock_ta_brief(ta_market_data, ticker, current_date)
+            stocks_str += f"- **{ticker}** ({company}): {currency_symbol}{data['price']:.2f} {currency} | {ta_brief} | News: {news}\n"
+        else:
+            stocks_str += f"- **{ticker}** ({company}): {currency_symbol}{data['price']:.2f} {currency} | News: {news}\n"
 
     # Define contract mechanics text
     if exchange == "NASDAQ":
@@ -271,6 +284,20 @@ def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BI
     else:
         instructions_text = """4. Output a single valid JSON object containing exactly the keys: "decision", "confidence", and "reasoning". Do not include any markdown fences or conversational filler."""
 
+    # Build the TA section for the prompt (only in TA mode)
+    ta_section = ""
+    if is_ta_mode and ta_index_block:
+        ta_section = f"""
+**Technical Analysis Indicators ({index_ticker}):**
+{ta_index_block}
+"""
+
+    # Build instruction line 1 based on mode
+    if is_ta_mode:
+        analysis_instruction = "1. Analyze the technical indicators as your PRIMARY signal, then cross-reference with macroeconomic news and individual stock headlines."
+    else:
+        analysis_instruction = "1. Analyze the macroeconomic news and the individual stock headlines to form a single daily directional bias."
+
     prompt = f"""You are a financial trading agent operating on {exchange}.
 You are benchmarked against other AI models. You trade index futures contracts only.
 Individual stock news and prices are provided purely to build your daily directional bias. You NEVER trade individual stocks directly.
@@ -288,7 +315,7 @@ Individual stock news and prices are provided purely to build your daily directi
 
 **{exchange} Index Price Today:**
 - {index_ticker}: {currency_symbol}{index_price:,.2f} {currency}
-
+{ta_section}
 **Macroeconomic News & Context:**
 - {macro_news}
 
@@ -296,7 +323,7 @@ Individual stock news and prices are provided purely to build your daily directi
 {stocks_str}
 
 **INSTRUCTIONS:**
-1. Analyze the macroeconomic news and the individual stock headlines to form a single daily directional bias.
+{analysis_instruction}
 2. Determine whether to go/stay LONG, go/stay SHORT, go FLAT (hold cash), or HOLD (keep current position).
 3. Assign a confidence score from 0 to 100 (where 100 is maximum confidence and 0 is none). Your confidence score will scale the risk (number of contracts traded). Higher confidence = larger position size.
 {instructions_text}
@@ -311,4 +338,5 @@ Individual stock news and prices are provided purely to build your daily directi
 YOUR RESPONSE (JSON ONLY):
 """
     return prompt
+
 

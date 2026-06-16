@@ -38,7 +38,7 @@ class RunParams(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     cash: Optional[float] = None
-    trading_approach: Optional[Literal["Balanced", "Aggressive", "Conservative"]] = "Balanced"
+    trading_approach: Optional[Literal["Balanced", "Aggressive", "Conservative", "TechnicalAnalysis"]] = "Balanced"
 
 
 class BacktestManager:

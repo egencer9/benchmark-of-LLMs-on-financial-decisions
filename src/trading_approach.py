@@ -87,12 +87,37 @@ class ConservativeApproach(TradingApproach):
     def adjust_prompt_instructions(self) -> str:
         return "You are highly risk-averse. Prioritize capital preservation above all. If you are currently FLAT, output HOLD to stay in cash. If you are currently in a position, output HOLD only if conviction remains. Only enter a new LONG or SHORT when certainty is extremely high. Reflect this by assigning lower confidence scores unless you are extremely certain."
 
+class TechnicalAnalysisApproach(TradingApproach):
+    @property
+    def name(self) -> str:
+        return "TechnicalAnalysis"
+
+    def get_max_risk_pct(self) -> float:
+        return 0.25  # Between Balanced (0.20) and Aggressive (0.40)
+
+    def calculate_position_size(self, max_possible_contracts: int, confidence: float) -> int:
+        # Linear scaling (same as Balanced) for fair prompt-vs-prompt comparison
+        return math.floor(max_possible_contracts * (confidence / 100.0))
+
+    def get_trade_confidence_threshold(self) -> float:
+        return 0.0
+
+    def adjust_prompt_instructions(self) -> str:
+        return (
+            "You have access to both TECHNICAL INDICATORS and news in this prompt. "
+            "Use the technical analysis indicators (RSI, MACD, SMA crossovers, Bollinger Bands, price momentum) "
+            "as your PRIMARY decision driver. Use news sentiment only as SECONDARY confirmation or contradiction. "
+            "If technical signals and news conflict, follow the technical signals. "
+            "Assign higher confidence when technical and fundamental signals align."
+        )
+
 
 class TradingApproachFactory:
     _approaches = {
         "balanced": BalancedApproach(),
         "aggressive": AggressiveApproach(),
         "conservative": ConservativeApproach(),
+        "technicalanalysis": TechnicalAnalysisApproach(),
         "v1": BalancedApproach()  # Map legacy results to Balanced to preserve historical behaviors
     }
 
@@ -102,3 +127,4 @@ class TradingApproachFactory:
             return cls._approaches["balanced"]
         cleaned_name = str(name).lower().strip()
         return cls._approaches.get(cleaned_name, cls._approaches["balanced"])
+

@@ -90,6 +90,7 @@ export default function BacktestRunner({
                 <option value="Balanced">Balanced</option>
                 <option value="Aggressive">Aggressive</option>
                 <option value="Conservative">Conservative</option>
+                <option value="TechnicalAnalysis">Technical Analysis</option>
               </select>
             </div>
 

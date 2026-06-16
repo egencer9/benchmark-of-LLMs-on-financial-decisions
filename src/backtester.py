@@ -238,6 +238,18 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         log.error(f"Market data for exchange '{exchange}' not found. Please run collection first.")
         return []
 
+    # TA mode: load extended market data (80 days before start) for indicator computation
+    ta_market_data = None
+    if trading_approach.lower().strip() == "technicalanalysis":
+        try:
+            extended_start = (pd.Timestamp(start_date) - timedelta(days=80)).strftime('%Y-%m-%d')
+            ta_market_data = load_market_data(exchange=exchange, start_date=extended_start, end_date=end_date)
+            ta_market_data['Date'] = pd.to_datetime(ta_market_data['Date'])
+            log.info(f"[TA Mode] Extended market data loaded: {extended_start} → {end_date} ({len(ta_market_data)} rows)")
+        except Exception as e:
+            log.warning(f"[TA Mode] Could not load extended data: {e}. TA indicators will be unavailable.")
+            ta_market_data = None
+
     try:
         news_data = load_news_data(exchange=exchange, start_date=start_date, end_date=end_date)
     except FileNotFoundError:
@@ -354,7 +366,7 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
                 "reasoning": "Forced FLAT on the last day of backtest to leave no open positions and liquidate all assets to cash."
             }
         else:
-            master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange, trading_approach=trading_approach)
+            master_prompt = construct_master_prompt(portfolio_state, daily_market_data, daily_news_summaries, exchange=exchange, trading_approach=trading_approach, ta_market_data=ta_market_data, current_date=current_date)
             available_tickers = list(current_prices.keys())
             
             log.info(f"\n=================== PROMPT SENT TO AI (Date: {date_str}) ===================")
