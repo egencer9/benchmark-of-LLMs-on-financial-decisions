@@ -1,0 +1,109 @@
+================================================================================
+SON 10 COMMİT DEĞİŞİKLİK VE İYİLEŞTİRME ÖZETLERİ (LATEST 10 COMMITS SUMMARY)
+================================================================================
+
+Bu dosya, benchmark-of-LLMs-on-financial-decisions projesinde son yapılan 10 commit ile 
+sisteme eklenen özellikleri ve düzeltilen mantıksal yapıları özetlemektedir.
+
+* **e577812 (TA prompt: add position management rules + HOLD normalization for consistency):**
+  - Teknik Analiz promptuna pozisyon yönetimi (kârı sürdürme, zararı kesme) kuralları eklendi.
+  - Kararsız teknik durumlarda (skor 0 veya ±1) modelin gereksiz işlem açmasını önlemek için `HOLD` kararı normalleştirildi.
+
+* **5f5cd8c (Quant-grade prompt architecture overhaul: risk context, state transitions, etc.):**
+  - Modellerin kararlılığını artırmak için portföy durumuna zengin risk bağlamı (P&L %, seans türü, başlangıç parası) eklendi.
+  - Mevcut pozisyona (LONG/SHORT/FLAT) göre dinamik durum geçiş kuralları (State Transitions) prompta entegre edildi.
+  - Güven skorunun (confidence) sadece yeni işlem açarken etkili olduğu, pozisyon korurken/kapatırken etki etmediği netleştirildi.
+  - Çıktı formatının bozulmasını önlemek için adım adım düşünme protokolü (CoT) ve 3 adet Few-shot JSON örneği eklendi.
+  - Haberlerin arasına sızabilecek yönlendirici ifadeleri engellemek amacıyla Prompt Injection koruması eklendi.
+  - Agresif modda pozisyon boyutlandırma formülü `sqrt` (karekök) yerine daha dengeli olan `0.7 üstel` fonksiyona çevrildi.
+  - Dengeli (Balanced) ve Muhafazakar (Conservative) promptları quant standartlarına göre revize edildi.
+
+* **27c67d3 (Tüm Hatalar Düzeltildi + Technical Anaylsis Backtest modu eklendi):**
+  - Tüm indikatörlerin oylarıyla çalışan, -5 (Güçlü Bearish) ile +5 (Güçlü Bullish) arası "Birleşik Teknik Rejim Skoru" (Composite Technical Regime) eklendi.
+  - Teknik analiz prompt hiyerarşisi "News Primary (Haber Birincil) -> TA Secondary (Teknik İkincil)" olarak güncellendi ve uyuşum (confluence) kuralları tanımlandı.
+
+* **27caa15 (Fix 3 - Ege D):**
+  - Teknik indikatörler çekirdeği (`src/technical_indicators.py`) yazıldı (RSI, SMA, MACD, Bollinger %B ve fiyat değişim yüzdeleri).
+  - İndikatör hesaplamalarının backtest başlangıcında hemen çalışabilmesi için 80 gün öncesinden veri yükleme desteği eklendi.
+  - `TechnicalAnalysisApproach` risk ve prompt parametreleri tanımlandı, Frontend ve API uç noktalarına entegre edildi.
+
+* **9064254 (Fix 3 - Ege D):**
+  - NASDAQ için NewsAPI ücretsiz plan kısıtlamasını (30 gün) aşmak amacıyla 365 güne kadar veri sunan Finnhub API haber entegrasyonu yazıldı.
+  - Backtest grafik kalitesi artırıldı (seaborn-whitegrid, 300 DPI, BIST30 ve NASDAQ için dinamik para birimi sembolleri).
+  - Eski ve kullanılmayan kod kalıntıları (`Data/data_fetcher.py`, `market_data.csv`) temizlendi.
+
+* **0c1ee5c (Fix2 - EgeD):**
+  - Frontend kod temizliği kapsamında devasa `App.jsx` dosyası daha küçük alt bileşenlere ayrıştırıldı (`BacktestRunner`, `DashboardOverview`, `MarketNews`, `ModelInsights`, `TradeLedger`).
+  - Backtester ve CLI'da (`main.py`) global konfigürasyonu bozmadan `initial_cash` override desteği eklendi.
+  - Gün içi (`is_intraday`) haber sorgu sınırlarında gelecekteki verilerin sızmasını önleyecek mantıksal düzeltme yapıldı.
+
+* **d333bc8 (Frontend update - Ege D):**
+  - Sonuç listesine başlangıç/bitiş sermayesi ve net kâr/zarar (PnL) alanları eklendi.
+  - API katmanına (`api.py`) geçmiş backtest sonuçlarını diskten silmek için DELETE uç noktası eklendi.
+
+* **cd6556e (Update benchmark models and cached CSV data):**
+  - BIST plots üretimi için `plots/generate_bist_plots.py` adında yeni bir görselleştirme scripti eklendi.
+  - Model konfigürasyonları (`config.yaml`) ve market/haber cache verileri güncellendi.
+
+* **672ec2f (Merge branch 'Ege-Branch' into gencer):**
+  - Ege-Branch geliştirme dalı gencer dalına entegre edildi.
+
+* **d68f8fe (feat: increase max run comparison limit to 10 in UI):**
+  - Arayüzde (UI) aynı anda karşılaştırılabilecek maksimum backtest çalışması sınırı 10'a yükseltildi.
+================================================================================
+
+📝 Değişiklik Günlüğü
+
+e577812 — TA Prompt: Pozisyon Yönetimi + HOLD Normalleştirme
+
+➕ Teknik Analiz promptuna kârı sürdürme / zararı kesme kuralları eklendi
+🔄 Kararsız teknik durumlarda (skor 0 veya ±1) gereksiz işlem açılmasını önlemek için HOLD kararı normalleştirildi
+
+
+5f5cd8c — Quant-Grade Prompt Mimarisi Yeniden Yapılandırıldı
+
+💰 Portföy durumuna zengin risk bağlamı eklendi → P&L %, seans türü, başlangıç parası
+🔀 Mevcut pozisyona (LONG / SHORT / FLAT) göre dinamik durum geçiş kuralları (State Transitions) entegre edildi
+🎯 Güven skorunun (confidence) yalnızca yeni işlem açarken geçerli olduğu, pozisyon korurken/kapatırken etkisiz olduğu netleştirildi
+🧠 Çıktı bozulmalarını önlemek için adım adım düşünme protokolü (CoT) ve 3 adet Few-shot JSON örneği eklendi
+🛡️ Haber içeriğine sızmaya karşı Prompt Injection koruması eklendi
+📐 Agresif modda pozisyon boyutlandırma formülü: sqrt → 0.7 üstel fonksiyona geçildi
+♻️ Balanced ve Conservative promptları quant standartlarına göre revize edildi
+
+
+27c67d3 — Tüm Hatalar Düzeltildi + TA Backtest Modu
+
+📊 Tüm indikatörlerin oylarıyla çalışan Birleşik Teknik Rejim Skoru eklendi → -5 (Güçlü Bearish) ↔ +5 (Güçlü Bullish)
+🗞️ Teknik analiz prompt hiyerarşisi güncellendi → Haber Birincil → Teknik İkincil
+🤝 Haber ve TA sinyalleri arasındaki uyuşum (confluence) kuralları tanımlandı
+
+
+27caa15 — Fix 3 (Ege D)
+
+🛠️ Teknik indikatörler çekirdeği yazıldı → RSI, SMA, MACD, Bollinger %B, fiyat değişim yüzdeleri
+📅 Backtest başlangıcında indikatörlerin hemen çalışabilmesi için 80 gün öncesine ait veri yükleme desteği eklendi
+🔌 TechnicalAnalysisApproach risk ve prompt parametreleri tanımlanıp Frontend ve API uç noktalarına entegre edildi
+
+
+9064254 — Fix 3 (Ege D)
+
+📰 NewsAPI'nin 30 günlük sınırını aşmak için Finnhub API haber entegrasyonu yazıldı → 365 güne kadar veri
+📈 Backtest grafik kalitesi artırıldı → seaborn-whitegrid, 300 DPI, BIST30 ve NASDAQ için dinamik para birimi sembolleri
+🧹 Kullanılmayan kod kalıntıları temizlendi → Data/data_fetcher.py, market_data.csv
+
+
+0c1ee5c — Fix 2 (Ege D)
+
+✂️ Devasa App.jsx dosyası daha küçük alt bileşenlere ayrıştırıldı:
+
+BacktestRunner · DashboardOverview · MarketNews · ModelInsights · TradeLedger
+
+
+⚙️ Backtester ve CLI'da (main.py) global konfigürasyonu bozmadan initial_cash override desteği eklendi
+🔒 Gün içi (is_intraday) haber sorgularında gelecek verisi sızmasını önleyen mantıksal düzeltme yapıldı
+
+
+d333bc8 — Frontend Güncellemesi (Ege D)
+
+💹 Sonuç listesine başlangıç/bitiş sermayesi ve net kâr/zarar (PnL) alanları eklendi
+🗑️ API katmanına (api.py) geçmiş backtest sonuçlarını diskten silmek için DELETE uç noktası eklendi
