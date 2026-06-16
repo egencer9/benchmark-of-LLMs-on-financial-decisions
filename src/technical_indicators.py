@@ -48,14 +48,24 @@ def compute_rsi(close_series: pd.Series, period: int = 14) -> float:
     rs = avg_gain / avg_loss.replace(0, np.nan)
     rsi = 100.0 - (100.0 / (1.0 + rs))
 
-    last_rsi = rsi.iloc[-1]
+    # Correct edge cases where either avg_loss or avg_gain is 0
+    # 1. If both are 0 (flat price series) -> 50.0
+    # 2. If only avg_loss is 0 (pure gains) -> 100.0
+    # 3. If only avg_gain is 0 (pure losses) -> 0.0
+    rsi = np.where((avg_loss == 0.0) & (avg_gain == 0.0), 50.0, rsi)
+    rsi = np.where((avg_loss == 0.0) & (avg_gain > 0.0), 100.0, rsi)
+    rsi = np.where((avg_gain == 0.0) & (avg_loss > 0.0), 0.0, rsi)
+
+    last_rsi = rsi[-1]
     return round(float(last_rsi), 2) if not np.isnan(last_rsi) else 50.0
 
 
 def compute_sma(close_series: pd.Series, period: int) -> float:
     """Basit hareketli ortalama hesaplar."""
     if len(close_series) < period:
-        return float(close_series.iloc[-1]) if len(close_series) > 0 else 0.0
+        last_val = float(close_series.iloc[-1]) if len(close_series) > 0 else 0.0
+        log.warning(f"[TA] SMA({period}) calculation received insufficient data ({len(close_series)} < {period}). Falling back to last closing price: {last_val}")
+        return last_val
 
     return round(float(close_series.rolling(window=period).mean().iloc[-1]), 2)
 

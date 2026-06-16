@@ -181,10 +181,39 @@ def parse_llm_response(response_str):
     
     clean_str = response_str.strip()
     
-    # Find the JSON substring containing the "decision" key between { and } non-greedily
-    json_match = re.search(r"(\{[^{}]*\"decision\"[^{}]*\})", clean_str, re.DOTALL)
-    if json_match:
-        clean_str = json_match.group(1)
+    # Extract the first complete JSON block containing matching { and }
+    start_idx = clean_str.find('{')
+    if start_idx != -1:
+        brace_count = 0
+        end_idx = -1
+        in_string = False
+        escape = False
+        for i in range(start_idx, len(clean_str)):
+            char = clean_str[i]
+            if escape:
+                escape = False
+                continue
+            if char == '\\':
+                escape = True
+                continue
+            if char == '"':
+                in_string = not in_string
+                continue
+            if not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i
+                        break
+        if end_idx != -1:
+            clean_str = clean_str[start_idx:end_idx+1]
+        else:
+            # Fallback if no matching closing brace is found
+            end_idx = clean_str.rfind('}')
+            if end_idx != -1 and end_idx > start_idx:
+                clean_str = clean_str[start_idx:end_idx+1]
     else:
         # Strip markdown json code block fences if present (fallback)
         if clean_str.startswith("```"):
