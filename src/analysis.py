@@ -140,6 +140,8 @@ def create_buy_and_hold_baseline(initial_investment, tickers, market_data, simul
                 last_known_prices[ticker] = price
             else:
                 price = last_known_prices.get(ticker, 0.0)
+                if price == 0.0:
+                    log.warning(f"No price data found for {ticker} at all. Baseline value is evaluated at 0.0 for this stock.")
                 
             daily_value += shares * price
         
