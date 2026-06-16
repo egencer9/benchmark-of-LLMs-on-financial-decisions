@@ -95,7 +95,8 @@ class OpenRouterProvider(LLMProvider):
                     "Authorization": f"Bearer {config.OPEN_ROUTER_KEY}",
                     "Content-Type": "application/json"
                 },
-                data=json.dumps(payload)
+                data=json.dumps(payload),
+                timeout=60
             )
             response.raise_for_status()
             return response.json()['choices'][0]['message']['content']
