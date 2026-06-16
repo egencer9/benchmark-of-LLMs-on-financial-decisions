@@ -244,11 +244,11 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
         log.error(f"Market data for exchange '{exchange}' not found. Please run collection first.")
         return []
 
-    # TA mode: load extended market data (80 days before start) for indicator computation
+    # TA mode: load extended market data (120 days before start) for indicator computation
     ta_market_data = None
     if trading_approach.lower().strip() == "technicalanalysis":
         try:
-            extended_start = (pd.Timestamp(start_date) - timedelta(days=80)).strftime('%Y-%m-%d')
+            extended_start = (pd.Timestamp(start_date) - timedelta(days=120)).strftime('%Y-%m-%d')
             ta_market_data = load_market_data(exchange=exchange, start_date=extended_start, end_date=end_date)
             ta_market_data['Date'] = pd.to_datetime(ta_market_data['Date'])
             log.info(f"[TA Mode] Extended market data loaded: {extended_start} → {end_date} ({len(ta_market_data)} rows)")
