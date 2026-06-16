@@ -6,12 +6,13 @@ def sharpe_ratio(daily_returns_series, risk_free_rate=0.0):
     Calculates Sharpe Ratio of daily returns.
     Input: pandas Series of daily returns.
     """
-    if daily_returns_series.empty or daily_returns_series.std() == 0:
-        return 0.0
+    std = daily_returns_series.std()
+    if daily_returns_series.empty or len(daily_returns_series) < 2 or pd.isna(std) or std == 0:
+        return float('nan')
     # Annualized Sharpe = (Mean Daily Return - RF Daily) / Std Daily * sqrt(252)
     daily_rf = risk_free_rate / 252
     excess_returns = daily_returns_series - daily_rf
-    sharpe = (excess_returns.mean() / daily_returns_series.std()) * np.sqrt(252)
+    sharpe = (excess_returns.mean() / std) * np.sqrt(252)
     return round(float(sharpe), 4)
 
 def max_drawdown(equity_curve_series):

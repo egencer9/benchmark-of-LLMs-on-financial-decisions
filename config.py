@@ -1,3 +1,10 @@
+# WARNING: Survivorship Bias Limitation
+# The constituent tickers listed under EXCHANGES are static lists representing the current components of the indices.
+# Historical backtests will query these same tickers. Consequently, the information set (news and prices)
+# presented to the LLM has survivorship bias, as it includes the "surviving" companies of today rather than
+# dynamically historical constituents of the index at that past time. The index futures price itself (XU030.IS and ^NDX)
+# is historically accurate, so P&L is unaffected, but the constituent news signals represent the survivors.
+
 import os
 import yaml
 from datetime import datetime
@@ -68,7 +75,6 @@ EXCHANGES = {
     }
 }
 INITIAL_CASH = 1000000  # 1 milyon
-SIMULATION_DAYS = 30
 
 # --- Trading Configuration ---
 TRADING_MODE = 'futures'  # futures index trading
@@ -79,8 +85,6 @@ MULTIPLIER_NASDAQ = 2
 MULTIPLIER_BIST30 = 10
 MAX_RISK_PCT = 0.20
 MIN_CONTRACTS = 1
-PROMPT_VERSION = "v1"
-ACTIVE_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free"
 
 # --- Dynamic Date Configuration ---
 USE_DYNAMIC_DATES = True

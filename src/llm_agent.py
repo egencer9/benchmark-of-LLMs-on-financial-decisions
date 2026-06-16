@@ -179,11 +179,17 @@ def parse_llm_response(response_str):
         return {"decision": "HOLD", "confidence": 50, "reasoning": "Empty response received."}
     
     clean_str = response_str.strip()
-    # Strip markdown json code block fences if present
-    if clean_str.startswith("```"):
-        clean_str = re.sub(r"^```(?:json)?\n", "", clean_str)
-        clean_str = re.sub(r"\n```$", "", clean_str)
-        clean_str = clean_str.strip()
+    
+    # Find the JSON substring containing the "decision" key between { and } non-greedily
+    json_match = re.search(r"(\{[^{}]*\"decision\"[^{}]*\})", clean_str, re.DOTALL)
+    if json_match:
+        clean_str = json_match.group(1)
+    else:
+        # Strip markdown json code block fences if present (fallback)
+        if clean_str.startswith("```"):
+            clean_str = re.sub(r"^```(?:json)?\n", "", clean_str)
+            clean_str = re.sub(r"\n```$", "", clean_str)
+            clean_str = clean_str.strip()
 
     try:
         data = json.loads(clean_str)
@@ -340,7 +346,7 @@ Individual stock news and prices are provided purely to build your daily directi
 **Current Portfolio & Account State:**
 - Cash: {currency_symbol}{portfolio['cash']:,.2f} {currency} (cash not posted as margin)
 - Total Account Equity: {currency_symbol}{current_equity:,.2f} {currency}
-- Available Cash for Margin: {currency_symbol}{portfolio.get('available_cash', portfolio['cash']):,.2f} {currency}
+- Available Capital for Margin: {currency_symbol}{portfolio.get('available_cash', portfolio['cash']):,.2f} {currency} (free cash + margin currently posted; note: reversing position requires closing current side first)
 - Current Position Type: {current_position} (LONG / SHORT / FLAT)
 - Number of Contracts Held: {portfolio.get('contracts', 0)}
 - Entry Price: {currency_symbol}{portfolio.get('entry_price', 0.0):,.2f} {currency}

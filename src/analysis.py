@@ -126,6 +126,7 @@ def create_buy_and_hold_baseline(initial_investment, tickers, market_data, simul
     # Calculate remaining cash (uninvested capital)
     remaining_cash = initial_investment - cash_spent
 
+    last_known_prices = {}
     baseline_history = []
     for date in simulation_dates:
         # Start daily value with the uninvested cash
@@ -136,11 +137,11 @@ def create_buy_and_hold_baseline(initial_investment, tickers, market_data, simul
             ticker_data = current_day_data[current_day_data['ticker'] == ticker]
             if not ticker_data.empty:
                 price = ticker_data['Close'].iloc[0]
-                daily_value += shares * price
+                last_known_prices[ticker] = price
             else:
-                # If no price for today, use the last known value (simplified) or 0
-                # Ideally we should forward fill, but for now let's assume price didn't change drastically or just skip
-                pass 
+                price = last_known_prices.get(ticker, 0.0)
+                
+            daily_value += shares * price
         
         baseline_history.append(daily_value)
 
