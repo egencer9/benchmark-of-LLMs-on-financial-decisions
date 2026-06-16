@@ -159,22 +159,32 @@ def get_market_data(exchange: str, start_date, end_date) -> pd.DataFrame:
         existing = pd.read_parquet(cache_file) if os.path.exists(cache_file) else pd.DataFrame()
         new_frames = [existing] if not existing.empty else []
 
+        fetch_success = True
         for (rs, re) in fetch_ranges:
-            fetched = _fetch_market_range(exchange, rs, re)
-            if not fetched.empty:
-                new_frames.append(fetched)
+            try:
+                fetched = _fetch_market_range(exchange, rs, re)
+                if not fetched.empty:
+                    new_frames.append(fetched)
+            except Exception as e:
+                log.error(f"[Cache] Piyasa verisi çekimi sırasında hata ({_date_str(rs)} → {_date_str(re)}): {e}")
+                fetch_success = False
 
-        if new_frames:
-            combined = pd.concat(new_frames, ignore_index=True)
-            combined["Date"] = pd.to_datetime(combined["Date"])
-            combined.drop_duplicates(subset=["Date", "ticker"], inplace=True)
-            combined.sort_values(["ticker", "Date"], inplace=True)
-            combined.reset_index(drop=True, inplace=True)
-            combined.to_parquet(cache_file, index=False)
+        if fetch_success:
+            new_data_added = len(new_frames) > (1 if not existing.empty else 0)
+            if new_data_added:
+                combined = pd.concat(new_frames, ignore_index=True)
+                combined["Date"] = pd.to_datetime(combined["Date"])
+                combined.drop_duplicates(subset=["Date", "ticker"], inplace=True)
+                combined.sort_values(["ticker", "Date"], inplace=True)
+                combined.reset_index(drop=True, inplace=True)
+                combined.to_parquet(cache_file, index=False)
+            elif not os.path.exists(cache_file):
+                empty_df = pd.DataFrame(columns=["Date", "ticker", "Open", "High", "Low", "Close", "Adj Close", "Volume"])
+                empty_df.to_parquet(cache_file, index=False)
 
             # Meta güncelle
-            new_cached_start = combined["Date"].min()
-            new_cached_end   = combined["Date"].max()
+            new_cached_start = min(start, cached_start) if cached_start is not None else start
+            new_cached_end = max(end, cached_end) if cached_end is not None else end
             meta.setdefault(exchange, {})["market"] = {
                 "start": _date_str(new_cached_start),
                 "end":   _date_str(new_cached_end),
@@ -182,7 +192,7 @@ def get_market_data(exchange: str, start_date, end_date) -> pd.DataFrame:
             _save_meta(meta)
             log.info(f"[Cache] Piyasa cache'i güncellendi: {_date_str(new_cached_start)} → {_date_str(new_cached_end)}")
         else:
-            log.warning("[Cache] Hiç yeni piyasa verisi çekilemedi; cache değişmedi.")
+            log.warning("[Cache] Piyasa verisi çekimi başarısız oldu; cache ve metadata güncellenmedi.")
 
     # Cache'den istenen aralığı filtrele
     if not os.path.exists(cache_file):
@@ -283,24 +293,35 @@ def get_news_data(exchange: str, start_date, end_date) -> pd.DataFrame:
         existing = pd.read_parquet(cache_file) if os.path.exists(cache_file) else pd.DataFrame()
         new_frames = [existing] if not existing.empty else []
 
+        fetch_success = True
         for (rs, re) in fetch_ranges:
-            fetched = _fetch_news_range(exchange, rs, re)
-            if not fetched.empty:
-                new_frames.append(fetched)
+            try:
+                fetched = _fetch_news_range(exchange, rs, re)
+                if not fetched.empty:
+                    new_frames.append(fetched)
+            except Exception as e:
+                log.error(f"[Cache] Haber çekimi sırasında hata ({_date_str(rs)} → {_date_str(re)}): {e}")
+                fetch_success = False
 
-        new_data_added = len(new_frames) > (1 if not existing.empty else 0)
-        if new_data_added:
-            combined = pd.concat(new_frames, ignore_index=True)
-            combined["publishedAt"] = pd.to_datetime(combined["publishedAt"])
-            if combined["publishedAt"].dt.tz is not None:
-                combined["publishedAt"] = combined["publishedAt"].dt.tz_localize(None)
-            combined.drop_duplicates(subset=["ticker", "publishedAt", "title"], inplace=True)
-            combined.sort_values("publishedAt", ascending=False, inplace=True)
-            combined.reset_index(drop=True, inplace=True)
-            combined.to_parquet(cache_file, index=False)
+        if fetch_success:
+            new_data_added = len(new_frames) > (1 if not existing.empty else 0)
+            if new_data_added:
+                combined = pd.concat(new_frames, ignore_index=True)
+                combined["publishedAt"] = pd.to_datetime(combined["publishedAt"])
+                if combined["publishedAt"].dt.tz is not None:
+                    combined["publishedAt"] = combined["publishedAt"].dt.tz_localize(None)
+                combined.drop_duplicates(subset=["ticker", "publishedAt", "title"], inplace=True)
+                combined.sort_values("publishedAt", ascending=False, inplace=True)
+                combined.reset_index(drop=True, inplace=True)
+                combined.to_parquet(cache_file, index=False)
+            elif not os.path.exists(cache_file):
+                empty_df = pd.DataFrame(columns=["ticker", "publishedAt", "title", "description", "content"])
+                empty_df.to_parquet(cache_file, index=False)
 
-            new_cached_start = combined["publishedAt"].min()
-            new_cached_end   = combined["publishedAt"].max()
+            # Meta güncelle
+            effective_start = max(start, api_horizon)
+            new_cached_start = min(effective_start, cached_start) if cached_start is not None else effective_start
+            new_cached_end = max(end, cached_end) if cached_end is not None else end
             meta.setdefault(exchange, {})["news"] = {
                 "start": _date_str(new_cached_start),
                 "end":   _date_str(new_cached_end),
@@ -308,7 +329,7 @@ def get_news_data(exchange: str, start_date, end_date) -> pd.DataFrame:
             _save_meta(meta)
             log.info(f"[Cache] Haber cache'i güncellendi: {_date_str(new_cached_start)} → {_date_str(new_cached_end)}")
         else:
-            log.info("[Cache] Yeni haber yok; mevcut cache değişmedi.")
+            log.warning("[Cache] Haber çekimi başarısız oldu; cache ve metadata güncellenmedi.")
 
 
     if not os.path.exists(cache_file):

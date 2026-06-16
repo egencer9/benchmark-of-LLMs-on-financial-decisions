@@ -170,7 +170,12 @@ TICKER_KEYWORDS = {
     "TUPRS.IS": ["tüpraş", "tupras", "tuprs"],
     "VAKBN.IS": ["vakıfbank", "vakifbank", "vakbn"],
     "YKBNK.IS": ["yapı kredi", "yapi kredi", "ykbnk"],
-    "XU030.IS": ["enflasyon", "faiz", "tcmb", "merkez bankası", "büyüme", "ekonomi", "cari açık", "tüketici fiyatı", "istihdam", "sanayi üretimi"],
+    "XU030.IS": [
+        "tcmb", "merkez bankası", "para politikası", "faiz kararı", "faiz oranı",
+        "enflasyon", "tüik", "tuik", "tüketici fiyat", "üretici fiyat", "cari açık",
+        "büyüme rakamları", "gdp", "istihdam", "işsizlik", "sanayi üretimi",
+        "türkiye ekonomisi", "türk ekonomisi", "hazine ve maliye"
+    ],
 }
 
 def _article_matches_ticker(text: str, ticker: str) -> bool:
@@ -320,6 +325,13 @@ def collect_all_news(exchange, start_date, end_date):
                     continue
 
                 published_dt = pd.to_datetime(published)
+                if published_dt.tz is not None:
+                    published_dt = published_dt.tz_localize(None)
+                start_ts = pd.Timestamp(start_date).tz_localize(None)
+                end_ts = pd.Timestamp(end_date).tz_localize(None)
+                if published_dt < start_ts or published_dt > end_ts:
+                    continue
+
                 title = getattr(entry, "title", "") or ""
                 description = getattr(entry, "summary", "") or ""
                 content = title + " " + description

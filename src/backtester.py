@@ -1,3 +1,9 @@
+# WARNING: Survivorship Bias Limitation
+# The constituent tickers of BIST30 and NASDAQ are static. Consequently, historical backtests run
+# with information sets (news + component prices) that suffer from survivorship bias, representing
+# today's survivors rather than the actual index constituents at the past trading date. The overall
+# index futures price (XU030.IS / ^NDX) is historically accurate, so P&L is realistic, but news signals are biased.
+
 import pandas as pd
 import json
 import math
@@ -344,13 +350,29 @@ def run_backtest(start_date, end_date, model_config=None, return_details=False, 
                     ]
                 ticker_news = historical_news.sort_values('publishedAt', ascending=False)
             recent_news = ticker_news.sort_values(by='publishedAt', ascending=False).head(3)
-            descriptions = " ".join(recent_news['description'].dropna())
+            news_items = []
+            for _, row in recent_news.iterrows():
+                t = str(row.get('title', '')).strip()
+                d = str(row.get('description', '')).strip()
+                if not d or d.lower() in ('none', 'nan'):
+                    news_items.append(t)
+                else:
+                    if len(d) > 400:
+                        d = d[:400] + "..."
+                    if t.lower() in d.lower():
+                        news_items.append(d)
+                    else:
+                        news_items.append(f"{t}: {d}")
+            descriptions = " | ".join(news_items)
             daily_news_summaries[ticker] = descriptions if descriptions else "No recent news found."
+
+        current_margin_posted = portfolio.get_margin_posted(today_open if is_intraday else today_close)
+        available_margin_capital = portfolio.cash + current_margin_posted
 
         portfolio_state = {
             'cash': portfolio.cash,
             'equity': portfolio.get_equity(today_open if is_intraday else today_close),
-            'available_cash': portfolio.cash,
+            'available_cash': available_margin_capital,
             'position_type': portfolio.position_type,
             'contracts': portfolio.contracts,
             'entry_price': portfolio.entry_price,
