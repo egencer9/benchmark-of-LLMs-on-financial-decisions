@@ -154,10 +154,99 @@ def _bollinger_label(pctb: float) -> str:
     return "Mid-range"
 
 
+def _compute_composite_regime(rsi: float, sma20: float, sma50: float, macd: dict,
+                                pctb: float, changes: dict) -> dict:
+    """
+    Tüm teknik göstergeleri birleşik bir skora dönüştürür.
+    Her gösterge -1 (bearish), 0 (neutral), +1 (bullish) oyu verir.
+    Net skor -5..+5 aralığında döner. 5 farklı sinyal:
+      1. RSI rejimi
+      2. SMA20/SMA50 trend yönü
+      3. MACD histogram momentum
+      4. Bollinger %B konumu
+      5. 5-günlük fiyat momentumu
+    """
+    votes = {}
+
+    # 1. RSI regime vote
+    if rsi >= 70:
+        votes["RSI"] = -1  # Overbought → mean-reversion riski → bearish bias
+    elif rsi <= 30:
+        votes["RSI"] = +1  # Oversold → bounce potansiyeli → bullish bias
+    elif rsi >= 60:
+        votes["RSI"] = +1  # Bullish zone
+    elif rsi <= 40:
+        votes["RSI"] = -1  # Bearish zone
+    else:
+        votes["RSI"] = 0   # 40-60 → neutral
+
+    # 2. SMA trend (positional, NOT crossover-only)
+    if sma20 > sma50:
+        votes["SMA_Trend"] = +1
+    elif sma20 < sma50:
+        votes["SMA_Trend"] = -1
+    else:
+        votes["SMA_Trend"] = 0
+
+    # 3. MACD histogram momentum
+    hist = macd["histogram"]
+    if hist > 0:
+        votes["MACD"] = +1
+    elif hist < 0:
+        votes["MACD"] = -1
+    else:
+        votes["MACD"] = 0
+
+    # 4. Bollinger %B position
+    if pctb >= 0.8:
+        votes["Bollinger"] = -1  # Near upper → resistance → caution
+    elif pctb <= 0.2:
+        votes["Bollinger"] = +1  # Near lower → support → opportunity
+    elif pctb >= 0.6:
+        votes["Bollinger"] = +1  # Upper half → momentum continuation
+    elif pctb <= 0.4:
+        votes["Bollinger"] = -1  # Lower half → weakness
+    else:
+        votes["Bollinger"] = 0
+
+    # 5. 5-day price momentum
+    mom5 = changes.get("5d", 0.0)
+    if mom5 > 1.5:
+        votes["Momentum_5D"] = +1
+    elif mom5 < -1.5:
+        votes["Momentum_5D"] = -1
+    else:
+        votes["Momentum_5D"] = 0
+
+    net_score = sum(votes.values())  # range: -5 to +5
+
+    if net_score >= 3:
+        regime = "STRONG BULLISH"
+    elif net_score >= 1:
+        regime = "LEAN BULLISH"
+    elif net_score == 0:
+        regime = "NEUTRAL / MIXED"
+    elif net_score >= -2:
+        regime = "LEAN BEARISH"
+    else:
+        regime = "STRONG BEARISH"
+
+    # Build vote breakdown string
+    vote_details = " | ".join([f"{k}: {'▲' if v > 0 else '▼' if v < 0 else '—'}" for k, v in votes.items()])
+
+    return {
+        "net_score": net_score,
+        "regime": regime,
+        "votes": votes,
+        "vote_summary": vote_details,
+    }
+
+
 def get_index_ta_summary(market_data: pd.DataFrame, index_ticker: str, current_date, currency_symbol: str = "$") -> str:
     """
     İndeks ticker'ı için tam teknik analiz özeti üretir.
     Prompt'a doğrudan enjekte edilebilecek formatlı string döner.
+    Birleşik rejim skoru dahildir.
     """
     close = _get_close_series(market_data, index_ticker, current_date, min_periods=14)
     if close.empty:
@@ -172,12 +261,19 @@ def get_index_ta_summary(market_data: pd.DataFrame, index_ticker: str, current_d
 
     sma_signal = "Bullish (SMA20 > SMA50)" if sma20 > sma50 else "Bearish (SMA20 < SMA50)"
 
+    # Compute composite regime
+    regime = _compute_composite_regime(rsi, sma20, sma50, macd, pctb, changes)
+
     lines = [
         f"- RSI(14): {rsi:.2f} — {_rsi_label(rsi)} (>70: overbought, <30: oversold)",
         f"- SMA20: {currency_symbol}{sma20:,.2f} / SMA50: {currency_symbol}{sma50:,.2f} — {sma_signal}",
         f"- MACD: {macd['macd']:+.2f} / Signal: {macd['signal']:+.2f} / Histogram: {macd['histogram']:+.2f} — {_macd_label(macd['histogram'])}",
         f"- Bollinger %B: {pctb:.4f} — {_bollinger_label(pctb)} (0=lower, 0.5=middle, 1=upper band)",
         f"- Price Change: 1D: {changes['1d']:+.2f}% / 5D: {changes['5d']:+.2f}% / 10D: {changes['10d']:+.2f}%",
+        f"",
+        f"**Composite Technical Regime: {regime['regime']} (Net Score: {regime['net_score']:+d}/5)**",
+        f"  Signal Votes: {regime['vote_summary']}",
+        f"  (▲ = bullish vote, ▼ = bearish vote, — = neutral. Score range: -5 strong bearish to +5 strong bullish)",
     ]
     return "\n".join(lines)
 
@@ -193,5 +289,7 @@ def get_stock_ta_brief(market_data: pd.DataFrame, ticker: str, current_date) -> 
 
     changes = compute_price_changes(close)
     rsi = compute_rsi(close)
+    macd = compute_macd(close)
+    macd_dir = "▲" if macd["histogram"] > 0 else "▼" if macd["histogram"] < 0 else "—"
 
-    return f"5D: {changes['5d']:+.2f}% | RSI: {rsi:.1f}"
+    return f"5D: {changes['5d']:+.2f}% | RSI: {rsi:.1f} | MACD: {macd_dir}"

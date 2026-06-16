@@ -288,13 +288,14 @@ def construct_master_prompt(portfolio, market_data, news_summaries, exchange="BI
     ta_section = ""
     if is_ta_mode and ta_index_block:
         ta_section = f"""
-**Technical Analysis Indicators ({index_ticker}):**
+**Technical Analysis — Secondary Confirmation Data ({index_ticker}):**
 {ta_index_block}
+(Use the Composite Technical Regime score above to confirm or reject your news-driven thesis. Do NOT let a single indicator override your fundamental analysis.)
 """
 
     # Build instruction line 1 based on mode
     if is_ta_mode:
-        analysis_instruction = "1. Analyze the technical indicators as your PRIMARY signal, then cross-reference with macroeconomic news and individual stock headlines."
+        analysis_instruction = "1. FIRST: Analyze the macroeconomic news and individual stock headlines to form your PRIMARY directional thesis. THEN: Check the Technical Analysis section below to CONFIRM or REJECT that thesis. Technicals alone should never override a strong fundamental view."
     else:
         analysis_instruction = "1. Analyze the macroeconomic news and the individual stock headlines to form a single daily directional bias."
 

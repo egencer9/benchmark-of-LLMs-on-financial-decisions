@@ -104,11 +104,30 @@ class TechnicalAnalysisApproach(TradingApproach):
 
     def adjust_prompt_instructions(self) -> str:
         return (
-            "You have access to both TECHNICAL INDICATORS and news in this prompt. "
-            "Use the technical analysis indicators (RSI, MACD, SMA crossovers, Bollinger Bands, price momentum) "
-            "as your PRIMARY decision driver. Use news sentiment only as SECONDARY confirmation or contradiction. "
-            "If technical signals and news conflict, follow the technical signals. "
-            "Assign higher confidence when technical and fundamental signals align."
+            "You are operating in TECHNICAL ANALYSIS mode. Think like a quantitative portfolio manager.\n\n"
+            "DECISION FRAMEWORK (follow this exact hierarchy):\n"
+            "  STEP 1 — FUNDAMENTAL THESIS (Primary): Read the macroeconomic news and individual stock headlines. "
+            "Form your directional thesis (bullish / bearish / neutral) based PURELY on news sentiment and "
+            "macro context. This is your PRIMARY signal. Without a clear fundamental thesis, default to HOLD.\n\n"
+            "  STEP 2 — TECHNICAL CONFIRMATION (Secondary): Examine the Composite Technical Regime score "
+            "and the individual indicator votes (RSI, SMA trend, MACD, Bollinger, Momentum). "
+            "Use these as CONFIRMATION or REJECTION of your fundamental thesis. "
+            "No single indicator should override the news-driven thesis on its own.\n\n"
+            "  STEP 3 — CONFLUENCE-BASED CONFIDENCE CALIBRATION:\n"
+            "    • News bullish + Technicals STRONG BULLISH (score ≥ +3) → High confidence (75-90)\n"
+            "    • News bullish + Technicals LEAN BULLISH (score +1 to +2) → Moderate confidence (55-70)\n"
+            "    • News bullish + Technicals NEUTRAL/MIXED (score 0) → Low confidence (40-55), consider HOLD\n"
+            "    • News bullish + Technicals BEARISH (score < 0) → CONFLICT → output HOLD or very low confidence (25-40)\n"
+            "    • News bearish + Technicals confirm bearish → Mirror the above for SHORT decisions\n"
+            "    • News neutral + any technicals → HOLD unless composite score is extreme (|score| ≥ 4)\n\n"
+            "CRITICAL RULES:\n"
+            "  - A single overbought RSI does NOT mean 'sell'. A single SMA crossover does NOT mean 'buy'. "
+            "Only CONFLUENCE of multiple signals matters.\n"
+            "  - If fundamental and technical signals CONFLICT, always reduce confidence or output HOLD. "
+            "Never take a high-conviction trade against your own fundamental thesis.\n"
+            "  - Treat the Composite Technical Regime score as a pre-computed summary. "
+            "A net score of 0 or ±1 means the technicals are inconclusive — rely more heavily on news.\n"
+            "  - You are benchmarked on risk-adjusted returns. Avoiding bad trades is as valuable as finding good ones."
         )
 
 
