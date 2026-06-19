@@ -392,8 +392,8 @@ def delete_run(exchange: str, filename: str):
 def compare_runs(runs: str, exchange: str):
     """Diffs / returns details of multiple backtest runs side-by-side."""
     filenames = [f.strip() for f in runs.split(",") if f.strip()]
-    if len(filenames) < 2:
-        raise HTTPException(status_code=400, detail="Provide at least 2 runs to compare.")
+    if not filenames:
+        raise HTTPException(status_code=400, detail="Provide at least 1 run to compare.")
 
     results = []
     for fname in filenames:
@@ -404,6 +404,7 @@ def compare_runs(runs: str, exchange: str):
         try:
             with open(fpath) as f:
                 r = json.load(f)
+                r["filename"] = safe_fname
                 results.append(r)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to parse '{safe_fname}': {str(e)}")

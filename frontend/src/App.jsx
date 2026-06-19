@@ -63,6 +63,7 @@ export default function App() {
   const [newsData, setNewsData] = useState([]);
   const [historyList, setHistoryList] = useState([]);
   const [selectedRunsForCompare, setSelectedRunsForCompare] = useState([]);
+  const [selectedRunMeta, setSelectedRunMeta] = useState({});
   const [compareData, setCompareData] = useState([]);
   const [singleRunDetails, setSingleRunDetails] = useState(null);
   const [selectedHistoryFile, setSelectedHistoryFile] = useState('');
@@ -187,6 +188,7 @@ export default function App() {
     fetchCacheStatus();
     setCompareData([]);
     setSelectedRunsForCompare([]);
+    setSelectedRunMeta({});
     setSingleRunDetails(null);
     setSelectedHistoryFile('');
     
@@ -262,7 +264,17 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/backtest/history?exchange=${exchange}&page=${historyPage}&limit=20`);
       if (!res.ok) throw new Error("Failed to fetch history list.");
       const data = await res.json();
-      setHistoryList(data.runs || []);
+      const runs = data.runs || [];
+      setHistoryList(runs);
+      setSelectedRunMeta(prev => {
+        const next = { ...prev };
+        runs.forEach(run => {
+          if (run.filename) {
+            next[run.filename] = run;
+          }
+        });
+        return next;
+      });
       setHistoryTotal(data.total || 0);
     } catch (err) {
       console.error(err);
@@ -298,19 +310,44 @@ export default function App() {
 
       // Format data for Recharts overlay
       // We align by step index (day index)
+      setSelectedRunMeta(prev => {
+        const next = { ...prev };
+        runs.forEach((run, index) => {
+          const filename = run.filename || selectedRunsForCompare[index];
+          if (filename) {
+            next[filename] = {
+              ...next[filename],
+              filename,
+              alias: run.alias,
+              exchange: run.exchange,
+              trading_approach: run.trading_approach,
+              prompt_version: run.prompt_version,
+              initial_capital: run.initial_capital,
+              final_capital: run.history?.[run.history.length - 1],
+              pnl: run.history?.length ? run.history[run.history.length - 1] - (run.initial_capital || run.history[0]) : 0,
+              date_range: run.date_range,
+              metrics: run.metrics,
+            };
+          }
+        });
+        return next;
+      });
+
       const maxLength = Math.max(...runs.map(r => r.history.length));
       const chartPoints = [];
 
       for (let i = 0; i < maxLength; i++) {
         const point = { day: i + 1 };
-        runs.forEach(run => {
+        runs.forEach((run, index) => {
+          const filename = run.filename || selectedRunsForCompare[index];
           // If we have detailed history, retrieve calendar dates
           const detail = run.detailed_history && run.detailed_history[i];
           if (detail && detail.date) {
             point.date = detail.date;
           }
-          const label = `${run.alias} (${run.trading_approach || run.prompt_version || 'Balanced'})`;
-          point[label] = run.history[i] !== undefined ? run.history[i] : null;
+          if (filename) {
+            point[filename] = run.history[i] !== undefined ? run.history[i] : null;
+          }
         });
         chartPoints.push(point);
       }
@@ -350,6 +387,11 @@ export default function App() {
       
       // Remove from selected comparison overlay list if it was selected
       setSelectedRunsForCompare(prev => prev.filter(f => f !== filename));
+      setSelectedRunMeta(prev => {
+        const next = { ...prev };
+        delete next[filename];
+        return next;
+      });
       // Refresh current history runs list
       fetchHistory();
     } catch (err) {
@@ -401,7 +443,7 @@ export default function App() {
 
   // Helper selectors
   const toggleCompareRun = (filename) => {
-    const targetRun = historyList.find(h => h.filename === filename);
+    const targetRun = historyList.find(h => h.filename === filename) || selectedRunMeta[filename];
     if (!targetRun) return;
 
     setSelectedRunsForCompare(prev => {
@@ -411,12 +453,16 @@ export default function App() {
         // Check if there are already selected runs and if they have the same budget
         if (prev.length > 0) {
           const firstSelectedFilename = prev[0];
-          const firstSelectedRun = historyList.find(h => h.filename === firstSelectedFilename);
+          const firstSelectedRun = selectedRunMeta[firstSelectedFilename] || historyList.find(h => h.filename === firstSelectedFilename);
           if (firstSelectedRun && firstSelectedRun.initial_capital !== targetRun.initial_capital) {
             alert(`You can only compare runs with the same budget. Selected budget: ${formatRunCapital(firstSelectedRun)}, target budget: ${formatRunCapital(targetRun)}.`);
             return prev;
           }
         }
+        setSelectedRunMeta(current => ({
+          ...current,
+          [filename]: targetRun
+        }));
         return [...prev, filename];
       }
     });
@@ -734,6 +780,7 @@ export default function App() {
                 historyPage={historyPage}
                 setHistoryPage={setHistoryPage}
                 selectedRunsForCompare={selectedRunsForCompare}
+                selectedRunMeta={selectedRunMeta}
                 toggleCompareRun={toggleCompareRun}
                 formatRunCapital={formatRunCapital}
                 formatCurrency={formatCurrency}

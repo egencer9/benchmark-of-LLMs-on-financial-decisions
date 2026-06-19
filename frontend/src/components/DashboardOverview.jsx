@@ -19,6 +19,7 @@ export default function DashboardOverview({
   historyPage,
   setHistoryPage,
   selectedRunsForCompare,
+  selectedRunMeta = {},
   toggleCompareRun,
   formatRunCapital,
   formatCurrency,
@@ -98,13 +99,14 @@ export default function DashboardOverview({
                 />
                 <Legend />
                 {selectedRunsForCompare.map((fname, idx) => {
-                  const runMeta = historyList.find(h => h.filename === fname);
+                  const runMeta = selectedRunMeta[fname] || historyList.find(h => h.filename === fname);
                   const label = runMeta ? `${runMeta.alias} (${runMeta.trading_approach || runMeta.prompt_version || 'Balanced'})` : fname;
                   return (
                     <Line
                       key={fname}
                       type="monotone"
-                      dataKey={label}
+                      dataKey={fname}
+                      name={label}
                       stroke={COLORS[idx % COLORS.length]}
                       strokeWidth={2.5}
                       dot={false}
@@ -274,8 +276,17 @@ export default function DashboardOverview({
           ) : (
             <div className="space-y-4">
               {selectedRunsForCompare.map((fname, idx) => {
-                const run = historyList.find(h => h.filename === fname);
-                if (!run) return null;
+                const run = selectedRunMeta[fname] || historyList.find(h => h.filename === fname);
+                if (!run) {
+                  return (
+                    <div key={fname} className="p-4 rounded-lg bg-slate-950/60 border border-border animate-fade-in">
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                        <span className="font-bold text-xs truncate text-slate-200">{fname}</span>
+                      </div>
+                    </div>
+                  );
+                }
                 const dateRangeStr = run.date_range && run.date_range.length === 2
                   ? `${formatDateStr(run.date_range[0])}\n-\n${formatDateStr(run.date_range[1])}`
                   : 'N/A';
